@@ -130,14 +130,6 @@ flowchart LR
     ReactApp -->|6. Submit deliverable via REST API| SA
     SA -->|7. Write Phase.APPROVED to store| OPCStore
     OPCStore -->|8. Native Phase Hooks Trigger| UnblockNode
-
-    style DAG fill:#0c111b,color:#f8fafc,stroke:#3b82f6,stroke-width:2px
-    style SA fill:#4f46e5,color:#ffffff,stroke:#6366f1,stroke-width:2px
-    style DB fill:#0f172a,color:#e2e8f0,stroke:#64748b,stroke-width:2px
-    style ReactApp fill:#0284c7,color:#ffffff,stroke:#38bdf8,stroke-width:2px
-    style HumanReviewer fill:#059669,color:#ffffff,stroke:#10b981,stroke-width:2px
-    style OPCStore fill:#0f172a,color:#e2e8f0,stroke:#64748b,stroke-width:2px
-    style UnblockNode fill:#16a34a,color:#ffffff,stroke:#22c55e,stroke-width:2px
 ```
 
 ---
@@ -184,15 +176,6 @@ flowchart TD
     ReworkPipeline --> AI
 
     ResumePipeline --> Complete(["OpenOPC DAG Resumes\nDownstream AI agents unblock automatically"])
-
-    style Start fill:#1e293b,color:#cbd5e1,stroke:#475569,stroke-width:2px
-    style AI fill:#0f172a,color:#f1f5f9,stroke:#3b82f6,stroke-width:2px
-    style Intercept fill:#4f46e5,color:#ffffff,stroke:#6366f1,stroke-width:2px
-    style Queue fill:#0284c7,color:#ffffff,stroke:#38bdf8,stroke-width:2px
-    style Decision fill:#d97706,color:#ffffff,stroke:#f59e0b,stroke-width:2px
-    style ResumePipeline fill:#16a34a,color:#ffffff,stroke:#22c55e,stroke-width:2px
-    style ReworkPipeline fill:#dc2626,color:#ffffff,stroke:#ef4444,stroke-width:2px
-    style Complete fill:#15803d,color:#ffffff,stroke:#22c55e,stroke-width:2px
 ```
 
 **Real-world application:**
@@ -228,14 +211,6 @@ flowchart TD
     end
 
     Company -->|Hits human-only checkpoints| Queue
-
-    style Operator fill:#16a34a,color:#ffffff,stroke:#22c55e,stroke-width:2px
-    style Queue fill:#4f46e5,color:#ffffff,stroke:#6366f1,stroke-width:2px
-    style Company fill:#0f172a,color:#f8fafc,stroke:#334155,stroke-width:2px
-    style Research fill:#1e293b,color:#cbd5e1,stroke:#475569,stroke-width:1px
-    style Dev fill:#1e293b,color:#cbd5e1,stroke:#475569,stroke-width:1px
-    style Marketing fill:#1e293b,color:#cbd5e1,stroke:#475569,stroke-width:1px
-    style Legal fill:#1e293b,color:#cbd5e1,stroke:#475569,stroke-width:1px
 ```
 
 **What this means in practice:**
@@ -300,11 +275,6 @@ sequenceDiagram
 stateDiagram-v2
     direction LR
 
-    classDef opcPhase fill:#4f46e5,color:#fff,stroke:#6366f1,stroke-width:2px;
-    classDef shadowStatus fill:#0284c7,color:#fff,stroke:#38bdf8,stroke-width:2px;
-    classDef finalState fill:#16a34a,color:#fff,stroke:#22c55e,stroke-width:2px;
-    classDef errorState fill:#dc2626,color:#fff,stroke:#ef4444,stroke-width:2px;
-
     [*] --> RUNNING : Task assigned to shadow role
     RUNNING --> AWAITING_HUMAN : execute method returns AWAITING_HUMAN status
     
@@ -326,11 +296,6 @@ stateDiagram-v2
     DONE --> [*]
     FAILED --> [*]
     CANCELLED --> [*]
-
-    class RUNNING, AWAITING_HUMAN, APPROVED, READY_FOR_REWORK opcPhase;
-    class pending, claimed, submitted, resumed, rework_requested shadowStatus;
-    class DONE finalState;
-    class FAILED, CANCELLED errorState;
 ```
 
 ---
@@ -380,15 +345,6 @@ flowchart TD
     TaskRoutes --> UploadSecurity
     TaskRoutes --> StoreRepo
     StoreRepo <--> ShadowDB
-
-    style HostEnv fill:#0c111b,color:#f8fafc,stroke:#3b82f6,stroke-width:2px
-    style ShadowPackage fill:#0f172a,color:#f8fafc,stroke:#6366f1,stroke-width:2px
-    style AdapterImpl fill:#4f46e5,color:#ffffff,stroke:#6366f1,stroke-width:2px
-    style AppFactory fill:#0284c7,color:#ffffff,stroke:#38bdf8,stroke-width:2px
-    style ShadowDB fill:#1e293b,color:#f8fafc,stroke:#64748b,stroke-width:2px
-    style OPCStore fill:#1e293b,color:#f8fafc,stroke:#64748b,stroke-width:2px
-    style FrontendSPA fill:#059669,color:#ffffff,stroke:#10b981,stroke-width:2px
-    style ClientBrowser fill:#16a34a,color:#ffffff,stroke:#22c55e,stroke-width:2px
 ```
 
 ---
