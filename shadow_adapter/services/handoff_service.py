@@ -14,6 +14,7 @@ Tier Boundaries (Mandate 2):
 
 from __future__ import annotations
 
+import hashlib
 import io
 
 from loguru import logger
@@ -24,6 +25,7 @@ from shadow_adapter.exceptions import (
     TaskPermissionError,
 )
 from shadow_adapter.models import (
+    CorporateArtifact,
     ShadowAuditEntry,
     ShadowSubmission,
     ShadowTask,
@@ -31,8 +33,12 @@ from shadow_adapter.models import (
     TaskSubmitResponse,
     UploadFileDTO,
     UploadLimits,
+    UpstreamContextPayload,
+    UpstreamContextTask,
 )
+from shadow_adapter.repositories.artifact_repo import CorporateArtifactsRepository
 from shadow_adapter.repositories.opc_resume_repo import OpcResumeRepository
+from shadow_adapter.services.org_service import OrgHierarchyService
 from shadow_adapter.shadow_store import ShadowStore
 from shadow_adapter.upload import SecureUploadHandler, UploadValidationError
 
@@ -46,11 +52,15 @@ class HandoffService:
         opc_resume_repo: OpcResumeRepository,
         upload_handler: SecureUploadHandler,
         upload_limits: UploadLimits,
+        artifact_repo: CorporateArtifactsRepository | None = None,
+        org_service: OrgHierarchyService | None = None,
     ) -> None:
         self._store = shadow_store
         self._opc_resume = opc_resume_repo
         self._upload = upload_handler
         self._limits = upload_limits
+        self._artifact_repo = artifact_repo or CorporateArtifactsRepository(shadow_store.db_path)
+        self._org_service = org_service or OrgHierarchyService()
 
     # ---------------------------------------------------------------------------
     # Silicon -> Desk (AI Parks Task)
@@ -97,8 +107,8 @@ class HandoffService:
             raise TaskNotClaimedError(task_id, task.status.value)
         self._assert_ownership(task, contractor_id)
 
-        # Process upload files
-        saved_file_paths = await self._process_uploads(files, task_id)
+        # Process upload files and index CorporateArtifacts
+        saved_file_paths = await self._process_uploads(files, task)
 
         submission = ShadowSubmission(
             deliverable_text=deliverable_text,
@@ -141,6 +151,43 @@ class HandoffService:
         await self._fetch_or_raise(task_id)
         return await self._store.get_audit_log(task_id)
 
+    async def get_task_upstream_context(self, task_id: str) -> UpstreamContextPayload:
+        """Assembles ancestor DAG deliverable texts and corporate artifacts for a downstream task."""
+        target_task = await self._fetch_or_raise(task_id)
+        all_tasks = await self._store.list_tasks(limit=1000)
+
+        ancestors = self._org_service.resolve_ancestor_task_ids(target_task, all_tasks)
+        ancestor_ids = [t.id for t in ancestors]
+
+        artifacts: list[CorporateArtifact] = []
+        if self._artifact_repo and ancestor_ids:
+            try:
+                artifacts = await self._artifact_repo.list_artifacts_for_tasks(ancestor_ids)
+            except Exception as e:
+                logger.warning(f"[HandoffService] Error listing corporate artifacts: {e}")
+
+        artifacts_by_task: dict[str, list[CorporateArtifact]] = {}
+        for art in artifacts:
+            artifacts_by_task.setdefault(art.shadow_task_id, []).append(art)
+
+        ancestor_payloads: list[UpstreamContextTask] = []
+        for anc in ancestors:
+            ancestor_payloads.append(
+                UpstreamContextTask(
+                    shadow_task_id=anc.id,
+                    opc_task_id=anc.opc_task_id,
+                    role=anc.assigned_role,
+                    title=anc.title,
+                    deliverable_text=anc.deliverable_text,
+                    artifacts=artifacts_by_task.get(anc.id, []),
+                )
+            )
+
+        return UpstreamContextPayload(
+            target_task_id=target_task.id,
+            ancestor_tasks=ancestor_payloads,
+        )
+
     # ---------------------------------------------------------------------------
     # Private Helpers (Production Line Pipeline Workstations)
     # ---------------------------------------------------------------------------
@@ -158,8 +205,8 @@ class HandoffService:
         if task.assigned_contractor_id != contractor_id:
             raise TaskPermissionError(task.id, task.assigned_contractor_id or "")
 
-    async def _process_uploads(self, files: list[UploadFileDTO], task_id: str) -> list[str]:
-        """Workstation 3: Validate upload constraints and save streams to disk."""
+    async def _process_uploads(self, files: list[UploadFileDTO], task: ShadowTask) -> list[str]:
+        """Workstation 3: Validate upload constraints, save streams to disk, and index in Central Brain."""
         self._upload.validate_file_count(len(files))
 
         saved_file_paths: list[str] = []
@@ -179,12 +226,36 @@ class HandoffService:
 
             stream = io.BytesIO(upload.content)
             saved_path, _ = self._upload.save_upload_stream(
-                shadow_task_id=task_id,
+                shadow_task_id=task.id,
                 filename=upload.filename,
                 stream=stream,
                 file_size_hint=file_len,
             )
             saved_file_paths.append(saved_path)
+
+            # Index artifact in Central Knowledge Graph
+            if self._artifact_repo:
+                try:
+                    import uuid
+
+                    file_hash = hashlib.sha256(upload.content).hexdigest()
+                    art = CorporateArtifact(
+                        id=f"art_{uuid.uuid4().hex[:12]}",
+                        shadow_task_id=task.id,
+                        opc_task_id=task.opc_task_id,
+                        opc_work_item_id=task.opc_work_item_id,
+                        creator_role=task.assigned_role,
+                        creator_contractor_id=task.assigned_contractor_id,
+                        original_filename=upload.filename,
+                        storage_path=saved_path,
+                        file_size_bytes=file_len,
+                        mime_type="application/octet-stream",
+                        sha256_hash=file_hash,
+                        tags=[task.assigned_role],
+                    )
+                    await self._artifact_repo.create_artifact(art)
+                except Exception as e:
+                    logger.warning(f"[HandoffService] Failed indexing corporate artifact for '{upload.filename}': {e}")
 
         return saved_file_paths
 

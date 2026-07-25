@@ -274,5 +274,49 @@ class HealthResponse(BaseModel):
     version: str = ""
 
 
+class CorporateArtifact(BaseModel):
+    """Corporate Knowledge Graph Artifact indexed in the Central Brain."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    id: str
+    shadow_task_id: str
+    opc_task_id: str
+    opc_work_item_id: str | None = None
+    creator_role: str
+    creator_contractor_id: str | None = None
+    original_filename: str
+    storage_path: str
+    file_size_bytes: int
+    mime_type: str = "application/octet-stream"
+    sha256_hash: str
+    tags: list[str] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+    download_url: str = ""
+    created_at: str | None = None
+
+
+class UpstreamContextTask(BaseModel):
+    """Deliverable and artifact context from an ancestor DAG node."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    shadow_task_id: str
+    opc_task_id: str
+    role: str
+    title: str
+    deliverable_text: str | None = None
+    artifacts: list[CorporateArtifact] = Field(default_factory=list)
+
+
+class UpstreamContextPayload(BaseModel):
+    """Hierarchical context inheritance payload passed to downstream workers."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    target_task_id: str
+    ancestor_tasks: list[UpstreamContextTask] = Field(default_factory=list)
+
+
 # Rebuild LoginResponse now that ContractorPublic is defined
 LoginResponse.model_rebuild()

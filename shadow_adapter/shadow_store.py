@@ -138,6 +138,11 @@ class ShadowStore:
         self._db_path = str(db_path)
         self._db: aiosqlite.Connection | None = None
 
+    @property
+    def db_path(self) -> str:
+        """Return the database file path."""
+        return self._db_path
+
     # ------------------------------------------------------------------
     # Lifecycle
     # ------------------------------------------------------------------

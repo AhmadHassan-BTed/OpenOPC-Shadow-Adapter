@@ -101,11 +101,31 @@ async def get_opc_resume_repo() -> OpcResumeRepository:
     return OpcResumeRepository()
 
 
+from shadow_adapter.repositories.artifact_repo import CorporateArtifactsRepository
+from shadow_adapter.services.org_service import OrgHierarchyService
+
+
+async def get_artifact_repo(
+    store: Annotated[ShadowStore, Depends(get_store)],
+) -> CorporateArtifactsRepository:
+    """Inject CorporateArtifactsRepository initialized with ShadowStore db_path."""
+    repo = CorporateArtifactsRepository(store.db_path)
+    await repo.initialize()
+    return repo
+
+
+async def get_org_service() -> OrgHierarchyService:
+    """Inject OrgHierarchyService."""
+    return OrgHierarchyService()
+
+
 async def get_handoff_service(
     store: Annotated[ShadowStore, Depends(get_store)],
     opc_resume: Annotated[OpcResumeRepository, Depends(get_opc_resume_repo)],
     upload_handler: Annotated[SecureUploadHandler, Depends(get_upload_handler)],
     upload_limits: Annotated[UploadLimits, Depends(get_upload_limits)],
+    artifact_repo: Annotated[CorporateArtifactsRepository, Depends(get_artifact_repo)],
+    org_service: Annotated[OrgHierarchyService, Depends(get_org_service)],
 ) -> HandoffService:
     """Inject HandoffService (The Temporal Bridge)."""
     return HandoffService(
@@ -113,6 +133,8 @@ async def get_handoff_service(
         opc_resume_repo=opc_resume,
         upload_handler=upload_handler,
         upload_limits=upload_limits,
+        artifact_repo=artifact_repo,
+        org_service=org_service,
     )
 
 

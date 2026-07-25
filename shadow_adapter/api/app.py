@@ -21,6 +21,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from loguru import logger
 
+from shadow_adapter.api.routes_artifacts import artifacts_router
 from shadow_adapter.api.routes_auth import router as auth_router
 from shadow_adapter.api.routes_tasks import router as tasks_router
 from shadow_adapter.config import ShadowConfig
@@ -82,10 +83,12 @@ def create_app(config: ShadowConfig | None = None) -> FastAPI:
     # Versioned v1 endpoints
     app.include_router(auth_router, prefix="/api/v1/auth", tags=["Auth (v1)"])
     app.include_router(tasks_router, prefix="/api/v1/tasks", tags=["Tasks (v1)"])
+    app.include_router(artifacts_router, prefix="/api/v1/artifacts", tags=["Artifacts (v1)"])
 
     # Legacy /api backwards-compatibility endpoints
     app.include_router(auth_router, prefix="/api/auth", tags=["Auth (legacy)"])
     app.include_router(tasks_router, prefix="/api/tasks", tags=["Tasks (legacy)"])
+    app.include_router(artifacts_router, prefix="/api/artifacts", tags=["Artifacts (legacy)"])
 
     # Health check endpoints
     @app.get("/api/v1/health", tags=["Health"])
