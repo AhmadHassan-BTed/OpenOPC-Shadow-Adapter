@@ -24,17 +24,17 @@
 
 ---
 
-## Primary Operational Use Cases
+## Use AI Agents For
 
-### 1. Augmenting Vacant or Overloaded Roles
+### Augmenting Vacant or Overloaded Roles
 *Lost a developer? Legal reviewer on leave? Analyst at capacity?*
 AI agents perform 90% of preliminary work (research, code generation, test suite execution, drafting). Shadow Adapter routes only the final approval decision to an available human manager.
 
-### 2. Run Your Entire Business on AI Autopilot
+### Running Your Entire Business on AI Autopilot
 *One operator with the leverage of a 10-person team.*
 Your AI Research Analyst, Dev Team, Marketing Lead, and Legal Counsel operate 24/7. Shadow Adapter queues strategic checkpoints for your review without stalling non-dependent work streams.
 
-### 3. Enterprise Regulatory Compliance
+### Ensuring Enterprise Regulatory Compliance
 In finance, healthcare, legal, and security, frameworks (SOC 2, ISO 27001, GDPR) mandate human sign-off. Shadow Adapter records immutable audit events with timestamps and contractor attribution for complete compliance verification.
 
 ---
@@ -99,8 +99,8 @@ For complete technical sequence diagrams, state machine maps, and database schem
 pip install openopc-shadow-adapter
 ```
 
-### Step 2: Register Adapter in Your Python Startup Script
-In your main OpenOPC application script (e.g., `main.py` or `run_company.py`), register the adapter **before** initializing or running your OpenOPC DAG pipeline:
+### Step 2: Register Adapter in Your Application Script
+In your main OpenOPC startup script (e.g., `main.py` or `run_company.py`), register the adapter **before** running your DAG engine:
 
 ```python
 # main.py (Your OpenOPC application entry point)
@@ -110,13 +110,14 @@ from shadow_adapter.adapter import ShadowModeAdapter
 # Register "shadow" mode into OpenOPC's adapter registry
 ADAPTER_CLASSES["shadow"] = ShadowModeAdapter
 
-# Now launch your OpenOPC DAG engine as normal
+# Now launch your OpenOPC DAG pipeline as normal
 ```
 
-### Step 3: Configure Role in Your Organization Config
-In your OpenOPC organization config (`.opc/config/company_orgs/company_config.yaml`), set `preferred_external_agent: shadow` for any role requiring human review:
+### Step 3: Configure Roles in Organization Config
+In your OpenOPC organization config (`.opc/config/company_orgs/company_config.yaml`), set `preferred_external_agent: shadow` for any role requiring human approval:
 
 ```yaml
+# .opc/config/company_orgs/company_config.yaml
 roles:
   legal_counsel:
     title: "Human Legal Counsel"
@@ -130,7 +131,7 @@ roles:
 ```
 
 ### Step 4: Launch Web Portal Server
-Run the REST server and React Human Web Portal in your terminal:
+Run the portal server in your terminal:
 
 ```bash
 shadow-serve --port 8800
