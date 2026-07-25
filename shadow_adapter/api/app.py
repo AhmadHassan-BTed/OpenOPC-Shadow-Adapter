@@ -11,6 +11,7 @@ Serves:
 from __future__ import annotations
 
 import argparse
+import threading
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -146,6 +147,7 @@ def start_server_in_thread(
     main OpenOPC application process without needing a separate terminal command.
     """
     import threading
+
     import uvicorn
 
     cfg = config or ShadowConfig(api_port=port, api_host=host)
@@ -181,4 +183,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

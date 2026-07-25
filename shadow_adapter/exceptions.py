@@ -61,3 +61,10 @@ class ContractorAlreadyExistsError(ShadowDomainError):
     def __init__(self, username: str) -> None:
         self.username = username
         super().__init__(f"Contractor with username '{username}' already exists.")
+
+
+class InvalidCredentialsError(ShadowDomainError):
+    """Raised when login credentials are invalid. Service raises; Controller maps to HTTP 401."""
+
+    def __init__(self) -> None:
+        super().__init__("Invalid username or password.")

@@ -7,7 +7,6 @@ and releases execution threads instantly.
 
 from __future__ import annotations
 
-import json
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -237,88 +236,15 @@ class ShadowModeAdapter(ExternalAgentAdapter):
     ) -> TaskResumeResult:
         """Push human deliverable back into OpenOPC store to unblock the DAG.
 
-        Wrapped in an Exception Black Hole for safe execution.
+        Delegates data access to OpcResumeRepository.
         """
-        try:
-            db_path = Path(opc_store_path)
-            if not db_path.exists():
-                msg = f"OpenOPC store.db not found at '{db_path}'"
-                logger.error(f"[ShadowModeAdapter] {msg}")
-                return TaskResumeResult(
-                    success=False,
-                    shadow_task_id=shadow_task.id,
-                    opc_task_id=shadow_task.opc_task_id,
-                    error=msg,
-                )
+        from shadow_adapter.repositories.opc_resume_repo import OpcResumeRepository
 
-            import aiosqlite
-
-            task_result = cls.shadow_submission_to_task_result(shadow_task)
-            result_json = json.dumps(
-                {
-                    "status": "done",
-                    "content": task_result.content,
-                    "summary": task_result.content,
-                    "artifacts": task_result.artifacts,
-                    "submitted_by_human": True,
-                    "contractor_username": shadow_task.assigned_contractor_id or "human_contractor",
-                    "cost": 0.0,
-                    "token_usage": {},
-                }
-            )
-
-            now_iso = datetime.now(timezone.utc).isoformat()
-
-            async with aiosqlite.connect(str(db_path)) as db:
-                await db.execute("PRAGMA journal_mode=WAL")
-
-                # Update task in OpenOPC database
-                cursor = await db.execute(
-                    """UPDATE tasks
-                       SET status = 'done',
-                           result = ?,
-                           execution_lock = 0,
-                           execution_locked_at = NULL
-                       WHERE id = ?""",
-                    (result_json, shadow_task.opc_task_id),
-                )
-
-                if cursor.rowcount == 0:
-                    logger.warning(f"No OpenOPC task row matched id={shadow_task.opc_task_id}")
-
-                # If linked to a work item, advance phase from awaiting_human -> approved
-                work_item_updated = False
-                if shadow_task.opc_work_item_id:
-                    wi_cursor = await db.execute(
-                        """UPDATE delegation_work_items
-                           SET phase = 'approved',
-                               updated_at = ?
-                           WHERE work_item_id = ?""",
-                        (now_iso, shadow_task.opc_work_item_id),
-                    )
-                    work_item_updated = wi_cursor.rowcount > 0
-
-                await db.commit()
-
-            logger.info(
-                f"[ShadowModeAdapter] Successfully resumed OpenOPC task {shadow_task.opc_task_id} "
-                f"(work_item={shadow_task.opc_work_item_id}, wi_updated={work_item_updated})"
-            )
-
-            return TaskResumeResult(
-                success=True,
-                shadow_task_id=shadow_task.id,
-                opc_task_id=shadow_task.opc_task_id,
-                opc_task_status="done",
-                opc_work_item_phase="approved" if work_item_updated else "",
-                message="OpenOPC task and work item updated to completed state.",
-            )
-
-        except Exception as exc:
-            logger.exception(f"[ShadowModeAdapter] Error resuming task {shadow_task.opc_task_id}: {exc}")
-            return TaskResumeResult(
-                success=False,
-                shadow_task_id=shadow_task.id,
-                opc_task_id=shadow_task.opc_task_id,
-                error=f"Resume Exception: {exc}",
-            )
+        repo = OpcResumeRepository()
+        task_result = cls.shadow_submission_to_task_result(shadow_task)
+        return await repo.resume(
+            shadow_task=shadow_task,
+            opc_store_path=str(opc_store_path),
+            task_result_content=task_result.content,
+            task_result_artifacts=task_result.artifacts,
+        )

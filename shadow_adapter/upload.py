@@ -6,6 +6,8 @@ Enforces security guardrails and limits:
 - Per-file size limit (default 10MB)
 - Total submission payload size limit (default 50MB)
 - File count limit per submission (default 5 files)
+
+Infrastructure Tier: Accepts UploadLimits DTO, never the full ShadowConfig.
 """
 
 from __future__ import annotations
@@ -14,11 +16,11 @@ import os
 import re
 import uuid
 from pathlib import Path
-from typing import BinaryIO
+from typing import Any, BinaryIO
 
 from loguru import logger
 
-from shadow_adapter.config import ShadowConfig
+from shadow_adapter.models import UploadLimits
 
 
 class UploadValidationError(ValueError):
@@ -28,14 +30,26 @@ class UploadValidationError(ValueError):
 class SecureUploadHandler:
     """Manages file storage, filename sanitization, and security checks."""
 
-    def __init__(self, config: ShadowConfig) -> None:
-        self.config = config
+    def __init__(self, config: UploadLimits | Any, *, upload_dir: str | Path | None = None) -> None:
+        # Accept UploadLimits directly, or extract from ShadowConfig for backward compat
+        if isinstance(config, UploadLimits):
+            self._limits = config
+            self._upload_dir = Path(upload_dir) if upload_dir else Path("./shadow_uploads")
+        else:
+            # Backward compatibility: extract UploadLimits from ShadowConfig
+            self._limits = UploadLimits(
+                max_file_count=config.max_files_per_submission,
+                max_file_size_bytes=config.max_file_size_bytes,
+                max_total_size_bytes=config.max_upload_size_bytes,
+                allowed_extensions=config.allowed_extensions_set,
+            )
+            self._upload_dir = config.upload_path
 
     def sanitize_filename(self, filename: str) -> str:
         """Strip path components, leading dots, and illegal characters.
 
         Example: '../../etc/passwd' -> 'passwd'
-                 '..\\..\\windows\\system32\\cmd.exe' -> 'cmd.exe'
+                 '..\\\\..\\\\windows\\\\system32\\\\cmd.exe' -> 'cmd.exe'
                  'my report (final!).pdf' -> 'my_report_final_.pdf'
         """
         # Strip leading/trailing whitespace and normalize backslashes
@@ -57,11 +71,11 @@ class SecureUploadHandler:
         ext = Path(filename).suffix.lower()
         # Handle double extension like .tar.gz if matched against allowed set
         full_name_lower = filename.lower()
-        if full_name_lower.endswith(".tar.gz") and ".tar.gz" in self.config.allowed_extensions_set:
+        if full_name_lower.endswith(".tar.gz") and ".tar.gz" in self._limits.allowed_extensions:
             return ".tar.gz"
 
-        if not ext or ext not in self.config.allowed_extensions_set:
-            allowed_str = ", ".join(sorted(self.config.allowed_extensions_set))
+        if not ext or ext not in self._limits.allowed_extensions:
+            allowed_str = ", ".join(sorted(self._limits.allowed_extensions))
             raise UploadValidationError(
                 f"File extension '{ext or 'none'}' is not allowed. Permitted extensions: {allowed_str}"
             )
@@ -69,17 +83,23 @@ class SecureUploadHandler:
 
     def validate_file_count(self, file_count: int) -> None:
         """Ensure file count does not exceed max_files_per_submission."""
-        if file_count > self.config.max_files_per_submission:
+        if file_count > self._limits.max_file_count:
             raise UploadValidationError(
                 f"Too many files uploaded ({file_count}). "
-                f"Maximum allowed per submission is {self.config.max_files_per_submission}."
+                f"Maximum allowed per submission is {self._limits.max_file_count}."
             )
+
+    @property
+    def upload_path(self) -> Path:
+        """Get the upload directory, creating it if needed."""
+        self._upload_dir.mkdir(parents=True, exist_ok=True)
+        return self._upload_dir
 
     def get_task_upload_dir(self, shadow_task_id: str) -> Path:
         """Get or create the task-scoped upload directory."""
         # Sanitize task_id to avoid traversal if task_id ever contained weird characters
         safe_task_id = re.sub(r"[^\w\-]", "_", shadow_task_id)
-        task_dir = self.config.upload_path / safe_task_id
+        task_dir = self.upload_path / safe_task_id
         task_dir.mkdir(parents=True, exist_ok=True)
         return task_dir
 
@@ -96,10 +116,8 @@ class SecureUploadHandler:
         """
         self.validate_extension(filename)
 
-        if file_size_hint is not None and file_size_hint > self.config.max_file_size_bytes:
-            raise UploadValidationError(
-                f"File '{filename}' exceeds individual size limit of {self.config.max_file_size_mb}MB."
-            )
+        if file_size_hint is not None and file_size_hint > self._limits.max_file_size_bytes:
+            raise UploadValidationError(f"File '{filename}' exceeds individual size limit.")
 
         safe_name = self.sanitize_filename(filename)
         unique_name = f"{uuid.uuid4().hex[:12]}_{safe_name}"
@@ -113,10 +131,8 @@ class SecureUploadHandler:
             with open(destination, "wb") as f_out:
                 while chunk := stream.read(chunk_size):
                     bytes_written += len(chunk)
-                    if bytes_written > self.config.max_file_size_bytes:
-                        raise UploadValidationError(
-                            f"File '{filename}' exceeded size limit of {self.config.max_file_size_mb}MB during stream."
-                        )
+                    if bytes_written > self._limits.max_file_size_bytes:
+                        raise UploadValidationError(f"File '{filename}' exceeded size limit during stream.")
                     f_out.write(chunk)
         except Exception:
             # Cleanup partial file on error
@@ -124,6 +140,6 @@ class SecureUploadHandler:
                 destination.unlink(missing_ok=True)
             raise
 
-        relative_path = str(destination.relative_to(self.config.upload_path))
+        relative_path = str(destination.relative_to(self.upload_path))
         logger.info(f"Saved file '{filename}' ({bytes_written} bytes) to {destination}")
         return relative_path, bytes_written

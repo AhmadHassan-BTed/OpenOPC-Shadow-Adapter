@@ -4,6 +4,8 @@ This module is the Shadow Adapter's own auth system — completely independent
 of OpenOPC's internal user management. It issues HS256 JWTs for contractors
 who log in through the REST API, and uses direct bcrypt hashing for password
 storage.
+
+Infrastructure Tier: Accepts JwtConfig DTO, never the full ShadowConfig.
 """
 
 from __future__ import annotations
@@ -15,14 +17,23 @@ import bcrypt
 from jose import JWTError, jwt
 from loguru import logger
 
-from shadow_adapter.config import ShadowConfig
+from shadow_adapter.models import JwtConfig
 
 
 class SecurityManager:
     """Handles JWT issuance/verification and password hashing."""
 
-    def __init__(self, config: ShadowConfig) -> None:
-        self.config = config
+    def __init__(self, config: JwtConfig | Any) -> None:
+        # Accept JwtConfig directly, or extract from ShadowConfig for backward compat
+        if isinstance(config, JwtConfig):
+            self._jwt_config = config
+        else:
+            # Backward compatibility: extract JwtConfig from ShadowConfig
+            self._jwt_config = JwtConfig(
+                secret=config.jwt_secret,
+                algorithm=config.jwt_algorithm,
+                expire_hours=config.jwt_expire_hours,
+            )
 
     # ------------------------------------------------------------------
     # Password hashing using direct bcrypt
@@ -60,7 +71,7 @@ class SecurityManager:
     ) -> str:
         """Create a signed JWT access token."""
         now = datetime.now(timezone.utc)
-        expire = now + (expires_delta if expires_delta is not None else timedelta(hours=self.config.jwt_expire_hours))
+        expire = now + (expires_delta if expires_delta is not None else timedelta(hours=self._jwt_config.expire_hours))
         payload: dict[str, Any] = {
             "sub": contractor_id,
             "username": username,
@@ -73,8 +84,8 @@ class SecurityManager:
 
         return jwt.encode(
             payload,
-            self.config.jwt_secret,
-            algorithm=self.config.jwt_algorithm,
+            self._jwt_config.secret,
+            algorithm=self._jwt_config.algorithm,
         )
 
     def decode_token(self, token: str) -> dict[str, Any]:
@@ -82,8 +93,8 @@ class SecurityManager:
         try:
             payload = jwt.decode(
                 token,
-                self.config.jwt_secret,
-                algorithms=[self.config.jwt_algorithm],
+                self._jwt_config.secret,
+                algorithms=[self._jwt_config.algorithm],
             )
         except JWTError as exc:
             logger.debug(f"JWT decode failed: {exc}")
@@ -99,4 +110,4 @@ class SecurityManager:
     @property
     def token_expire_seconds(self) -> int:
         """Token lifetime in seconds."""
-        return self.config.jwt_expire_hours * 3600
+        return self._jwt_config.expire_hours * 3600

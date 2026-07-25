@@ -102,6 +102,46 @@ class ShadowTask(BaseModel):
     extra_metadata: dict[str, Any] = Field(default_factory=dict)
 
 
+# ---------------------------------------------------------------------------
+# Infrastructure Boundary DTOs (Kill God Object Config Coupling)
+# ---------------------------------------------------------------------------
+
+
+class UploadLimits(BaseModel):
+    """Strict boundary DTO. Replaces passing full ShadowConfig to upload functions."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    max_file_count: int
+    max_file_size_bytes: int
+    max_total_size_bytes: int
+    allowed_extensions: set[str]
+
+
+class JwtConfig(BaseModel):
+    """Strict boundary DTO. Replaces passing full ShadowConfig to SecurityManager."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    secret: str
+    algorithm: str = "HS256"
+    expire_hours: int = 24
+
+
+class UploadFileDTO(BaseModel):
+    """Framework-agnostic file upload representation.
+
+    Decouples the Service layer from FastAPI's UploadFile type.
+    Controllers convert FastAPI UploadFile -> UploadFileDTO at the boundary.
+    """
+
+    model_config = ConfigDict(extra="ignore")
+
+    filename: str
+    content: bytes
+    size: int
+
+
 class ShadowSubmission(BaseModel):
     """Inbound deliverable payload from a human contractor."""
 
@@ -193,6 +233,18 @@ class ContractorPublic(BaseModel):
     display_name: str = ""
     roles: list[str] = Field(default_factory=list)
     is_active: bool = True
+
+    @classmethod
+    def from_contractor(cls, c: ShadowContractor) -> ContractorPublic:
+        """Project a full ShadowContractor into its public-safe representation."""
+        return cls(
+            id=c.id,
+            username=c.username,
+            email=c.email,
+            display_name=c.display_name,
+            roles=c.roles,
+            is_active=c.is_active,
+        )
 
 
 class RegisterRequest(BaseModel):

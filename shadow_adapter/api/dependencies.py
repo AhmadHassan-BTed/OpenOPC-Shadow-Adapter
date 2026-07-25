@@ -2,9 +2,12 @@
 
 Provides clean DI for:
 - Database store instance (ShadowStore)
+- OpcResumeRepository instance
 - Security manager (JWT verification & password hashing)
 - Secure upload handler
-- Configuration settings (ShadowConfig)
+- Configuration settings (ShadowConfig, UploadLimits, JwtConfig)
+- HandoffService (The Temporal Bridge)
+- AuthService (Carbon Employee Identity)
 - Authenticated current contractor (via OAuth2 password bearer token)
 - Admin role authorization check
 """
@@ -17,8 +20,11 @@ from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
 
 from shadow_adapter.config import ShadowConfig
-from shadow_adapter.models import ShadowContractor
+from shadow_adapter.models import JwtConfig, ShadowContractor, UploadLimits
+from shadow_adapter.repositories.opc_resume_repo import OpcResumeRepository
 from shadow_adapter.security import SecurityManager
+from shadow_adapter.services.auth_service import AuthService
+from shadow_adapter.services.handoff_service import HandoffService
 from shadow_adapter.shadow_store import ShadowStore
 from shadow_adapter.upload import SecureUploadHandler
 
@@ -33,6 +39,29 @@ async def get_config(request: Request) -> ShadowConfig:
     return config
 
 
+async def get_jwt_config(
+    config: Annotated[ShadowConfig, Depends(get_config)],
+) -> JwtConfig:
+    """Construct JwtConfig DTO from ShadowConfig."""
+    return JwtConfig(
+        secret=config.jwt_secret,
+        algorithm=config.jwt_algorithm,
+        expire_hours=config.jwt_expire_hours,
+    )
+
+
+async def get_upload_limits(
+    config: Annotated[ShadowConfig, Depends(get_config)],
+) -> UploadLimits:
+    """Construct UploadLimits DTO from ShadowConfig."""
+    return UploadLimits(
+        max_file_count=config.max_files_per_submission,
+        max_file_size_bytes=config.max_file_size_bytes,
+        max_total_size_bytes=config.max_upload_size_bytes,
+        allowed_extensions=config.allowed_extensions_set,
+    )
+
+
 async def get_store(request: Request) -> ShadowStore:
     """Inject ShadowStore instance from FastAPI application state."""
     store: ShadowStore | None = getattr(request.app.state, "shadow_store", None)
@@ -44,22 +73,55 @@ async def get_store(request: Request) -> ShadowStore:
     return store
 
 
-async def get_security(request: Request) -> SecurityManager:
-    """Inject SecurityManager instance from FastAPI application state."""
+async def get_security(
+    request: Request,
+    jwt_config: Annotated[JwtConfig, Depends(get_jwt_config)],
+) -> SecurityManager:
+    """Inject SecurityManager instance constructed with JwtConfig DTO."""
     security: SecurityManager | None = getattr(request.app.state, "security", None)
     if security is None:
-        config = await get_config(request)
-        security = SecurityManager(config)
+        security = SecurityManager(jwt_config)
     return security
 
 
-async def get_upload_handler(request: Request) -> SecureUploadHandler:
-    """Inject SecureUploadHandler instance from FastAPI application state."""
+async def get_upload_handler(
+    request: Request,
+    limits: Annotated[UploadLimits, Depends(get_upload_limits)],
+) -> SecureUploadHandler:
+    """Inject SecureUploadHandler instance constructed with UploadLimits DTO."""
     handler: SecureUploadHandler | None = getattr(request.app.state, "upload_handler", None)
     if handler is None:
         config = await get_config(request)
-        handler = SecureUploadHandler(config)
+        handler = SecureUploadHandler(limits, upload_dir=config.upload_path)
     return handler
+
+
+async def get_opc_resume_repo() -> OpcResumeRepository:
+    """Inject OpcResumeRepository instance."""
+    return OpcResumeRepository()
+
+
+async def get_handoff_service(
+    store: Annotated[ShadowStore, Depends(get_store)],
+    opc_resume: Annotated[OpcResumeRepository, Depends(get_opc_resume_repo)],
+    upload_handler: Annotated[SecureUploadHandler, Depends(get_upload_handler)],
+    upload_limits: Annotated[UploadLimits, Depends(get_upload_limits)],
+) -> HandoffService:
+    """Inject HandoffService (The Temporal Bridge)."""
+    return HandoffService(
+        shadow_store=store,
+        opc_resume_repo=opc_resume,
+        upload_handler=upload_handler,
+        upload_limits=upload_limits,
+    )
+
+
+async def get_auth_service(
+    store: Annotated[ShadowStore, Depends(get_store)],
+    security: Annotated[SecurityManager, Depends(get_security)],
+) -> AuthService:
+    """Inject AuthService."""
+    return AuthService(store=store, security=security)
 
 
 async def get_current_contractor(
@@ -67,10 +129,7 @@ async def get_current_contractor(
     store: Annotated[ShadowStore, Depends(get_store)],
     security: Annotated[SecurityManager, Depends(get_security)],
 ) -> ShadowContractor:
-    """Validate JWT token and inject current authenticated ShadowContractor.
-
-    Raises HTTP 401 if missing, invalid, or expired.
-    """
+    """Validate JWT token and inject current authenticated ShadowContractor."""
     if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
