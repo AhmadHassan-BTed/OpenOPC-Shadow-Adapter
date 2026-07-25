@@ -51,28 +51,31 @@
 
 ---
 
-## Quick Start (3 Steps)
+## Primary Operational Use Cases
 
-### 1. Install
-```bash
-pip install openopc-shadow-adapter
-```
+### 1. Augmenting Vacant or Overloaded Roles
+*Lost a developer? Legal reviewer on leave? Analyst at capacity?*
+AI agents perform 90% of preliminary work (research, code generation, test suite execution, drafting). Shadow Adapter routes only the final approval decision to an available human manager.
 
-### 2. Register Adapter
-```python
-from opc.layer3_agent.adapters.registry import ADAPTER_CLASSES
-from shadow_adapter.adapter import ShadowModeAdapter
+### 2. Run Your Entire Business on AI Autopilot
+*One operator with the leverage of a 10-person team.*
+Your AI Research Analyst, Dev Team, Marketing Lead, and Legal Counsel operate 24/7. Shadow Adapter queues strategic checkpoints for your review without stalling non-dependent work streams.
 
-# Register Shadow Mode adapter into OpenOPC engine
-ADAPTER_CLASSES["shadow"] = ShadowModeAdapter
-```
+### 3. Enterprise Regulatory Compliance
+In finance, healthcare, legal, and security, frameworks (SOC 2, ISO 27001, GDPR) mandate human sign-off. Shadow Adapter records immutable audit events with timestamps and contractor attribution for complete compliance verification.
 
-### 3. Launch Human Portal Server
-```bash
-shadow-serve --port 8800
-```
-- **Web Portal:** `http://localhost:8800`
-- **REST API:** `http://localhost:8800/api/v1`
+---
+
+## Feature Comparison
+
+| Capability | Standard OpenOPC | OpenOPC + Shadow Adapter |
+|:---|:---|:---|
+| **Human response time > 900s** | Engine crash (timeout failure) | **Zero timeouts (unlimited duration)** |
+| **System restart resilience** | State lost | **Persisted in isolated SQLite WAL DB** |
+| **Multi-user access control** | Local user only | **Multi-user queue with JWT auth** |
+| **File attachments** | Text only | **Up to 5 files, 50MB payload** |
+| **Audit log compliance** | Basic engine log | **Immutable timeline with user attribution** |
+| **Iterative rework loop** | Manual intervention | **Built-in `rework_requested` state transition** |
 
 ---
 
@@ -116,35 +119,32 @@ For complete technical sequence diagrams, state machine maps, and database schem
 
 ---
 
-## Key Operational Use Cases
+## Quick Start (3 Steps)
 
-### 1. Augmenting Vacant or Overloaded Roles
-*Lost a developer? Legal reviewer on leave? Analyst at capacity?*
-AI agents perform 90% of the work (research, code generation, test suite execution, drafting). Shadow Adapter routes only the final approval decision to an available human manager.
+### 1. Install
+```bash
+pip install openopc-shadow-adapter
+```
 
-### 2. Run Your Entire Business on AI Autopilot
-*One operator with the leverage of a 10-person team.*
-Your AI Research Analyst, Dev Team, Marketing Lead, and Legal Counsel operate 24/7. Shadow Adapter queues strategic checkpoints for your review without stalling non-dependent work streams.
+### 2. Register Adapter
+```python
+from opc.layer3_agent.adapters.registry import ADAPTER_CLASSES
+from shadow_adapter.adapter import ShadowModeAdapter
 
-### 3. Enterprise Regulatory Compliance
-In finance, healthcare, legal, and security, frameworks (SOC 2, ISO 27001, GDPR) mandate human sign-off. Shadow Adapter records immutable audit events with timestamps and contractor attribution for complete compliance verification.
+# Register Shadow Mode adapter into OpenOPC engine
+ADAPTER_CLASSES["shadow"] = ShadowModeAdapter
+```
 
----
-
-## Feature Comparison
-
-| Capability | Standard OpenOPC | OpenOPC + Shadow Adapter |
-|:---|:---|:---|
-| **Human response time > 900s** | Engine crash (timeout failure) | **Zero timeouts (unlimited duration)** |
-| **System restart resilience** | State lost | **Persisted in isolated SQLite WAL DB** |
-| **Multi-user access control** | Local user only | **Multi-user queue with JWT auth** |
-| **File attachments** | Text only | **Up to 5 files, 50MB payload** |
-| **Audit log compliance** | Basic engine log | **Immutable timeline with user attribution** |
-| **Iterative rework loop** | Manual intervention | **Built-in `rework_requested` state transition** |
+### 3. Launch Human Portal Server
+```bash
+shadow-serve --port 8800
+```
+- **Web Portal:** `http://localhost:8800`
+- **REST API:** `http://localhost:8800/api/v1`
 
 ---
 
-## Architecture & Technical Deep-Dive
+## Architecture Deep-Dive
 
 All detailed technical specifications are decoupled from this overview:
 - **[Architecture Specification & Implementation Contracts](docs/architecture.md#1-core-architecture-contracts)**
