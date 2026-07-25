@@ -52,7 +52,7 @@ htmlcov/
 
 # ── Node / Frontend Build ────────────────────────────────────────────────
 node_modules/
-shadow_adapter/frontend/dist/
+shadow_adapter/frontend/node_modules/
 shadow_adapter/frontend/.vite/
 *.tsbuildinfo
 

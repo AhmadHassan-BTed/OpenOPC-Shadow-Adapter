@@ -10,18 +10,18 @@ Validates:
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
 import io
+from datetime import timedelta
 from pathlib import Path
+
 import pytest
-from httpx import AsyncClient, ASGITransport
+from httpx import ASGITransport, AsyncClient
 
 from shadow_adapter.adapter import ShadowModeAdapter
 from shadow_adapter.api.app import create_app
 from shadow_adapter.config import ShadowConfig
 from shadow_adapter.models import (
     ShadowContractor,
-    ShadowSubmission,
     ShadowTask,
     ShadowTaskStatus,
 )
@@ -53,6 +53,7 @@ except ImportError:
 # 1. DATABASE & STORE EDGE CASES
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_unclaim_unowned_task_fails(shadow_store: ShadowStore) -> None:
     """Test that contractor B cannot unclaim a task claimed by contractor A."""
@@ -75,9 +76,7 @@ async def test_claim_non_existent_task_fails(shadow_store: ShadowStore) -> None:
 async def test_task_pagination_and_sorting(shadow_store: ShadowStore) -> None:
     """Test pagination limit and offset parameters."""
     for i in range(15):
-        await shadow_store.create_task(
-            ShadowTask(opc_task_id=f"opc_page_{i}", title=f"Page Task {i}")
-        )
+        await shadow_store.create_task(ShadowTask(opc_task_id=f"opc_page_{i}", title=f"Page Task {i}"))
 
     page1 = await shadow_store.list_tasks(limit=5, offset=0)
     assert len(page1) == 5
@@ -93,6 +92,7 @@ async def test_task_pagination_and_sorting(shadow_store: ShadowStore) -> None:
 # ---------------------------------------------------------------------------
 # 2. UPLOAD SECURITY & EDGE CASES
 # ---------------------------------------------------------------------------
+
 
 def test_sanitize_dot_only_filename(shadow_config: ShadowConfig) -> None:
     """Test that filenames consisting only of dots or whitespace default to 'unnamed_file'."""
@@ -134,6 +134,7 @@ def test_save_upload_stream_exceeds_size(shadow_config: ShadowConfig) -> None:
 # 3. ADAPTER & RESUME PIPELINE EDGE CASES
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_resume_task_missing_opc_store_db(shadow_config: ShadowConfig) -> None:
     """Test that resume_task handles missing OpenOPC store.db gracefully without crashing."""
@@ -169,6 +170,7 @@ async def test_task_to_shadow_task_metadata_fallback() -> None:
 # ---------------------------------------------------------------------------
 # 4. AUTH & SECURITY EDGE CASES
 # ---------------------------------------------------------------------------
+
 
 def test_jwt_expired_token_rejected(shadow_config: ShadowConfig) -> None:
     """Test that an expired JWT token raises ValueError."""

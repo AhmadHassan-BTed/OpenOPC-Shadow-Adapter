@@ -14,7 +14,7 @@ import os
 import re
 import uuid
 from pathlib import Path
-from typing import BinaryIO, Sequence
+from typing import BinaryIO
 
 from loguru import logger
 

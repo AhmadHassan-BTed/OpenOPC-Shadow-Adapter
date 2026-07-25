@@ -60,11 +60,7 @@ class SecurityManager:
     ) -> str:
         """Create a signed JWT access token."""
         now = datetime.now(timezone.utc)
-        expire = now + (
-            expires_delta
-            if expires_delta is not None
-            else timedelta(hours=self.config.jwt_expire_hours)
-        )
+        expire = now + (expires_delta if expires_delta is not None else timedelta(hours=self.config.jwt_expire_hours))
         payload: dict[str, Any] = {
             "sub": contractor_id,
             "username": username,

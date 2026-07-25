@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-import asyncio
 import sqlite3
 import uuid
+from collections.abc import AsyncGenerator
 from pathlib import Path
-from typing import AsyncGenerator
 
 import pytest
 import pytest_asyncio
@@ -38,7 +37,9 @@ def shadow_config(tmp_path: Path) -> ShadowConfig:
 
 
 @pytest_asyncio.fixture
-async def shadow_store(shadow_config: ShadowConfig) -> AsyncGenerator[ShadowStore, None]:
+async def shadow_store(
+    shadow_config: ShadowConfig,
+) -> AsyncGenerator[ShadowStore, None]:
     """Provide an initialized ShadowStore instance using an isolated temp SQLite DB."""
     store = ShadowStore(shadow_config.db_path)
     await store.initialize()

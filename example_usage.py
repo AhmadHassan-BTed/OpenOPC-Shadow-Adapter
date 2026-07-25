@@ -20,8 +20,9 @@ from pathlib import Path
 # ── Step 1: Programmatic Adapter Injection into OpenOPC ───────────────────
 # In a real OpenOPC app, import ADAPTER_CLASSES from opc.layer3_agent.adapters.registry
 try:
-    from opc.layer3_agent.adapters.registry import ADAPTER_CLASSES
     from opc.core.models import Task, TaskStatus
+    from opc.layer3_agent.adapters.registry import ADAPTER_CLASSES
+
     HAS_OPENOPC_PACKAGE = True
 except ImportError:
     # Standalone mock fallback for demonstration
@@ -48,7 +49,7 @@ except ImportError:
 
 from shadow_adapter.adapter import ShadowModeAdapter
 from shadow_adapter.config import ShadowConfig
-from shadow_adapter.models import ShadowSubmission, ShadowTaskStatus
+from shadow_adapter.models import ShadowSubmission
 from shadow_adapter.shadow_store import ShadowStore
 
 # Register the ShadowModeAdapter with OpenOPC
@@ -182,7 +183,10 @@ async def main() -> None:
         # ── Step 6: Verify final OpenOPC DB state ─────────────────────────
         conn = sqlite3.connect(str(opc_store_path))
         task_status_in_opc = conn.execute("SELECT status FROM tasks WHERE id = ?", (opc_task_id,)).fetchone()[0]
-        wi_phase_in_opc = conn.execute("SELECT phase FROM delegation_work_items WHERE work_item_id = ?", (work_item_id,)).fetchone()[0]
+        wi_phase_in_opc = conn.execute(
+            "SELECT phase FROM delegation_work_items WHERE work_item_id = ?",
+            (work_item_id,),
+        ).fetchone()[0]
         conn.close()
 
         print("\n4. Verified OpenOPC Database State:")

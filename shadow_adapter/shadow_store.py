@@ -19,7 +19,7 @@ Architectural notes
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -114,7 +114,7 @@ CREATE INDEX IF NOT EXISTS idx_audit_log_task
 
 
 def _now_iso() -> str:
-    return datetime.utcnow().isoformat()
+    return datetime.now(timezone.utc).isoformat()
 
 
 def _parse_dt(value: str | None) -> datetime | None:
@@ -213,9 +213,7 @@ class ShadowStore:
 
     async def get_task(self, task_id: str) -> ShadowTask | None:
         assert self._db is not None
-        async with self._db.execute(
-            "SELECT * FROM shadow_tasks WHERE id = ?", (task_id,)
-        ) as cursor:
+        async with self._db.execute("SELECT * FROM shadow_tasks WHERE id = ?", (task_id,)) as cursor:
             row = await cursor.fetchone()
         return self._row_to_task(row) if row else None
 
@@ -268,9 +266,7 @@ class ShadowStore:
         if not task:
             raise ValueError(f"Task not found: {task_id}")
         if task.status != ShadowTaskStatus.PENDING:
-            raise ValueError(
-                f"Cannot claim task {task_id}: status is '{task.status.value}', expected 'pending'"
-            )
+            raise ValueError(f"Cannot claim task {task_id}: status is '{task.status.value}', expected 'pending'")
         now = _now_iso()
         assert self._db is not None
         await self._db.execute(
@@ -339,10 +335,15 @@ class ShadowStore:
             ),
         )
         await self._db.commit()
-        await self._audit(task_id, contractor_id, "submitted", {
-            "has_text": bool(submission.deliverable_text),
-            "file_count": len(submission.deliverable_files),
-        })
+        await self._audit(
+            task_id,
+            contractor_id,
+            "submitted",
+            {
+                "has_text": bool(submission.deliverable_text),
+                "file_count": len(submission.deliverable_files),
+            },
+        )
         return await self.get_task(task_id)  # type: ignore[return-value]
 
     async def mark_resumed(self, task_id: str) -> ShadowTask:
@@ -420,25 +421,19 @@ class ShadowStore:
 
     async def get_contractor(self, contractor_id: str) -> ShadowContractor | None:
         assert self._db is not None
-        async with self._db.execute(
-            "SELECT * FROM shadow_contractors WHERE id = ?", (contractor_id,)
-        ) as cursor:
+        async with self._db.execute("SELECT * FROM shadow_contractors WHERE id = ?", (contractor_id,)) as cursor:
             row = await cursor.fetchone()
         return self._row_to_contractor(row) if row else None
 
     async def get_contractor_by_username(self, username: str) -> ShadowContractor | None:
         assert self._db is not None
-        async with self._db.execute(
-            "SELECT * FROM shadow_contractors WHERE username = ?", (username,)
-        ) as cursor:
+        async with self._db.execute("SELECT * FROM shadow_contractors WHERE username = ?", (username,)) as cursor:
             row = await cursor.fetchone()
         return self._row_to_contractor(row) if row else None
 
     async def list_contractors(self) -> list[ShadowContractor]:
         assert self._db is not None
-        async with self._db.execute(
-            "SELECT * FROM shadow_contractors ORDER BY created_at ASC"
-        ) as cursor:
+        async with self._db.execute("SELECT * FROM shadow_contractors ORDER BY created_at ASC") as cursor:
             rows = await cursor.fetchall()
         return [self._row_to_contractor(row) for row in rows]
 
@@ -466,7 +461,7 @@ class ShadowStore:
                 actor_id=row["actor_id"],
                 action=row["action"],
                 details=json.loads(row["details_json"] or "{}"),
-                created_at=_parse_dt(row["created_at"]) or datetime.utcnow(),
+                created_at=_parse_dt(row["created_at"]) or datetime.now(timezone.utc),
             )
             for row in rows
         ]
@@ -508,7 +503,7 @@ class ShadowStore:
             assigned_contractor_id=row["assigned_contractor_id"],
             deliverable_text=row["deliverable_text"],
             deliverable_files=json.loads(row["deliverable_files_json"] or "[]"),
-            parked_at=_parse_dt(row["parked_at"]) or datetime.utcnow(),
+            parked_at=_parse_dt(row["parked_at"]) or datetime.now(timezone.utc),
             claimed_at=_parse_dt(row["claimed_at"]),
             submitted_at=_parse_dt(row["submitted_at"]),
             resumed_at=_parse_dt(row["resumed_at"]),
@@ -526,6 +521,6 @@ class ShadowStore:
             display_name=row["display_name"] or "",
             roles=json.loads(row["roles_json"] or '["contractor"]'),
             is_active=bool(row["is_active"]),
-            created_at=_parse_dt(row["created_at"]) or datetime.utcnow(),
-            updated_at=_parse_dt(row["updated_at"]) or datetime.utcnow(),
+            created_at=_parse_dt(row["created_at"]) or datetime.now(timezone.utc),
+            updated_at=_parse_dt(row["updated_at"]) or datetime.now(timezone.utc),
         )

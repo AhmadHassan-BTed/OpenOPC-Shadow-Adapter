@@ -223,7 +223,10 @@ class MockOpenOPCEngine:
         task_row = cursor.fetchone()
         assert task_row is not None and task_row[0] == "done", f"OPC Task status is {task_row[0]}, expected 'done'"
 
-        wi_cursor = conn.execute("SELECT phase FROM delegation_work_items WHERE work_item_id = ?", (work_item_id,))
+        wi_cursor = conn.execute(
+            "SELECT phase FROM delegation_work_items WHERE work_item_id = ?",
+            (work_item_id,),
+        )
         wi_row = wi_cursor.fetchone()
         assert wi_row is not None and wi_row[0] == "approved", f"OPC WorkItem phase is {wi_row[0]}, expected 'approved'"
         conn.close()
@@ -246,6 +249,7 @@ class MockOpenOPCEngine:
 
 def main() -> None:
     import tempfile
+
     with tempfile.TemporaryDirectory() as tmp_dir:
         engine = MockOpenOPCEngine(Path(tmp_dir))
         asyncio.run(engine.run_full_lifecycle_simulation())

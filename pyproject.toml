@@ -82,3 +82,11 @@ testpaths = ["tests"]
 filterwarnings = [
     "ignore::DeprecationWarning",
 ]
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+
+[tool.ruff.lint]
+ignore = ["E501", "E402", "B008", "BLE001", "B017"]
+

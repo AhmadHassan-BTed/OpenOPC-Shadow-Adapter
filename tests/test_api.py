@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-import io
 import pytest
 from httpx import AsyncClient
-from shadow_adapter.models import ShadowContractor, ShadowTask, ShadowTaskStatus
+
+from shadow_adapter.models import ShadowContractor, ShadowTask
 from shadow_adapter.shadow_store import ShadowStore
 
 pytestmark = pytest.mark.asyncio
@@ -24,21 +24,27 @@ async def test_health_check_endpoint(client: AsyncClient) -> None:
 async def test_auth_flow_login_register(client: AsyncClient) -> None:
     """Test contractor registration and login flow."""
     # Register first user -> becomes admin automatically
-    reg_res = await client.post("/api/auth/register", json={
-        "username": "admin_user",
-        "password": "Password123!",
-        "email": "admin@example.com",
-    })
+    reg_res = await client.post(
+        "/api/auth/register",
+        json={
+            "username": "admin_user",
+            "password": "Password123!",
+            "email": "admin@example.com",
+        },
+    )
     assert reg_res.status_code == 201
     admin_data = reg_res.json()
     assert admin_data["username"] == "admin_user"
     assert "admin" in admin_data["roles"]
 
     # Login
-    login_res = await client.post("/api/auth/login", json={
-        "username": "admin_user",
-        "password": "Password123!",
-    })
+    login_res = await client.post(
+        "/api/auth/login",
+        json={
+            "username": "admin_user",
+            "password": "Password123!",
+        },
+    )
     assert login_res.status_code == 200
     login_data = login_res.json()
     assert "access_token" in login_data
@@ -109,6 +115,7 @@ async def test_task_lifecycle_api(
 # ---------------------------------------------------------------------------
 # SECURITY GUARDRAILS TESTS (Intentionally Failing Upload Limits)
 # ---------------------------------------------------------------------------
+
 
 async def test_upload_limit_exceed_file_count(
     client: AsyncClient,

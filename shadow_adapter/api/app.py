@@ -9,7 +9,6 @@ Serves:
 from __future__ import annotations
 
 import argparse
-import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -71,6 +70,7 @@ def create_app(config: ShadowConfig | None = None) -> FastAPI:
     @app.get("/api/health", tags=["Health"])
     async def health_alias(request: Request):
         from shadow_adapter.api.routes_tasks import health_check
+
         store = request.app.state.shadow_store
         return await health_check(store=store, config=cfg)
 
@@ -79,13 +79,20 @@ def create_app(config: ShadowConfig | None = None) -> FastAPI:
     if dist_dir.exists() and (dist_dir / "index.html").exists():
         logger.info(f"Mounting React SPA static files from {dist_dir}")
 
-        app.mount("/assets", StaticFiles(directory=str(dist_dir / "assets")), name="static_assets")
+        app.mount(
+            "/assets",
+            StaticFiles(directory=str(dist_dir / "assets")),
+            name="static_assets",
+        )
 
         @app.get("/{full_path:path}", include_in_schema=False)
         async def serve_spa(full_path: str):
             # API requests that didn't match an endpoint return 404 JSON
             if full_path.startswith("api/"):
-                return JSONResponse(status_code=404, content={"detail": f"API route '/{full_path}' not found"})
+                return JSONResponse(
+                    status_code=404,
+                    content={"detail": f"API route '/{full_path}' not found"},
+                )
 
             target_file = dist_dir / full_path
             if target_file.exists() and target_file.is_file():
@@ -94,6 +101,7 @@ def create_app(config: ShadowConfig | None = None) -> FastAPI:
             return FileResponse(str(dist_dir / "index.html"))
 
     else:
+
         @app.get("/", include_in_schema=False)
         async def root_fallback():
             return {

@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-import io
-from pathlib import Path
 import pytest
+
 from shadow_adapter.config import ShadowConfig
 from shadow_adapter.security import SecurityManager
 from shadow_adapter.upload import SecureUploadHandler, UploadValidationError

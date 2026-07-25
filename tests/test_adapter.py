@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import sqlite3
+from pathlib import Path
+
 import pytest
+
 from shadow_adapter.adapter import ShadowModeAdapter
 from shadow_adapter.config import ShadowConfig
 from shadow_adapter.models import ShadowTaskStatus
@@ -32,6 +35,7 @@ except ImportError:
         project_id: str = "default"
         metadata: dict = field(default_factory=dict)
         linked_work_item_id: str = "wi_1"
+
 
 pytestmark = pytest.mark.asyncio
 
@@ -140,6 +144,7 @@ async def test_resume_task_updates_opc_store(
     # Claim & submit task
     await shadow_store.claim_task(shadow_id, "contractor_resume")
     from shadow_adapter.models import ShadowSubmission
+
     sub = await shadow_store.submit_task(
         shadow_id,
         "contractor_resume",
@@ -162,7 +167,10 @@ async def test_resume_task_updates_opc_store(
     # Verify mock store.db tables
     conn = sqlite3.connect(str(mock_opc_store_path))
     task_row = conn.execute("SELECT status FROM tasks WHERE id = ?", (opc_task_id,)).fetchone()
-    wi_row = conn.execute("SELECT phase FROM delegation_work_items WHERE work_item_id = ?", (work_item_id,)).fetchone()
+    wi_row = conn.execute(
+        "SELECT phase FROM delegation_work_items WHERE work_item_id = ?",
+        (work_item_id,),
+    ).fetchone()
     conn.close()
 
     assert task_row[0] == "done"

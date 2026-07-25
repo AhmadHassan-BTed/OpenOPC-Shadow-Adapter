@@ -12,7 +12,7 @@ When a human contractor submits work via the API, ``resume_task()`` pushes the f
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -22,6 +22,7 @@ from loguru import logger
 try:
     from opc.core.models import AgentStatus, Task, TaskResult, TaskStatus
     from opc.layer3_agent.adapters.base import ExternalAgentAdapter
+
     HAS_OPENOPC = True
 except ImportError:  # pragma: no cover
     HAS_OPENOPC = False
@@ -65,6 +66,7 @@ except ImportError:  # pragma: no cover
 
     class ExternalAgentAdapter:  # type: ignore[no-redef]
         agent_type: str = ""
+
         def __init__(self, config: Any = None) -> None:
             self.config = config
 
@@ -73,7 +75,11 @@ except ImportError:  # pragma: no cover
 
 
 from shadow_adapter.config import ShadowConfig
-from shadow_adapter.models import ShadowSubmission, ShadowTask, ShadowTaskStatus, TaskResumeResult
+from shadow_adapter.models import (
+    ShadowTask,
+    ShadowTaskStatus,
+    TaskResumeResult,
+)
 from shadow_adapter.shadow_store import ShadowStore
 
 
@@ -129,7 +135,10 @@ class ShadowModeAdapter(ExternalAgentAdapter):
 
         # Check if already parked
         existing = await store.get_task_by_opc_id(task.id)
-        if existing and existing.status in (ShadowTaskStatus.PENDING, ShadowTaskStatus.CLAIMED):
+        if existing and existing.status in (
+            ShadowTaskStatus.PENDING,
+            ShadowTaskStatus.CLAIMED,
+        ):
             logger.info(f"[ShadowModeAdapter] Task {task.id} is already parked as {existing.id}")
             return TaskResult(
                 status=TaskStatus.AWAITING_HUMAN,
@@ -191,7 +200,7 @@ class ShadowModeAdapter(ExternalAgentAdapter):
             assigned_role=getattr(task, "assigned_to", "") or "",
             priority=int(getattr(task, "priority", 5) or 5),
             status=ShadowTaskStatus.PENDING,
-            parked_at=datetime.utcnow(),
+            parked_at=datetime.now(timezone.utc),
         )
 
     @staticmethod
@@ -237,18 +246,20 @@ class ShadowModeAdapter(ExternalAgentAdapter):
         import aiosqlite
 
         task_result = cls.shadow_submission_to_task_result(shadow_task)
-        result_json = json.dumps({
-            "status": "done",
-            "content": task_result.content,
-            "summary": task_result.content,
-            "artifacts": task_result.artifacts,
-            "submitted_by_human": True,
-            "contractor_username": shadow_task.assigned_contractor_id or "human_contractor",
-            "cost": 0.0,
-            "token_usage": {},
-        })
+        result_json = json.dumps(
+            {
+                "status": "done",
+                "content": task_result.content,
+                "summary": task_result.content,
+                "artifacts": task_result.artifacts,
+                "submitted_by_human": True,
+                "contractor_username": shadow_task.assigned_contractor_id or "human_contractor",
+                "cost": 0.0,
+                "token_usage": {},
+            }
+        )
 
-        now_iso = datetime.utcnow().isoformat()
+        now_iso = datetime.now(timezone.utc).isoformat()
 
         try:
             async with aiosqlite.connect(str(db_path)) as db:

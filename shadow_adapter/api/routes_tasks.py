@@ -15,7 +15,16 @@ from __future__ import annotations
 import io
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Query,
+    UploadFile,
+    status,
+)
 from loguru import logger
 
 from shadow_adapter.adapter import ShadowModeAdapter

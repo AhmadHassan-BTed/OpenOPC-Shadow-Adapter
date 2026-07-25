@@ -19,10 +19,10 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-
 # ---------------------------------------------------------------------------
 # Enumerations
 # ---------------------------------------------------------------------------
+
 
 class ShadowTaskStatus(StrEnum):
     """Lifecycle states for a parked shadow task."""
@@ -49,6 +49,7 @@ class ShadowTaskStatus(StrEnum):
 # ---------------------------------------------------------------------------
 # Core Domain Models
 # ---------------------------------------------------------------------------
+
 
 class ShadowTask(BaseModel):
     """A human-parked task — the adapter's local record of an intercepted OpenOPC task."""
@@ -132,6 +133,7 @@ class ShadowAuditEntry(BaseModel):
 # Resume Result (outcome of pushing result back to OpenOPC)
 # ---------------------------------------------------------------------------
 
+
 class TaskResumeResult(BaseModel):
     """Outcome of the resume pipeline — pushing a human deliverable back into OpenOPC."""
 
@@ -148,6 +150,7 @@ class TaskResumeResult(BaseModel):
 # API Request / Response schemas
 # ---------------------------------------------------------------------------
 
+
 class LoginRequest(BaseModel):
     username: str
     password: str
@@ -162,6 +165,7 @@ class LoginResponse(BaseModel):
 
 class ContractorPublic(BaseModel):
     """Public-facing contractor info (no password hash)."""
+
     id: str
     username: str
     email: str | None = None

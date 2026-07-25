@@ -95,11 +95,7 @@ class ShadowConfig(BaseSettings):
     @property
     def allowed_extensions_set(self) -> set[str]:
         """Parse the comma-separated extensions string into a set."""
-        return {
-            ext.strip().lower()
-            for ext in self.allowed_extensions.split(",")
-            if ext.strip()
-        }
+        return {ext.strip().lower() for ext in self.allowed_extensions.split(",") if ext.strip()}
 
     @property
     def max_upload_size_bytes(self) -> int:

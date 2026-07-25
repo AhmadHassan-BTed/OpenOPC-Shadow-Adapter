@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-import uuid
 import pytest
+
 from shadow_adapter.models import (
     ShadowContractor,
     ShadowSubmission,
