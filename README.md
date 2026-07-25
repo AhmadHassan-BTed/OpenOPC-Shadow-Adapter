@@ -6,55 +6,41 @@
   ██████╔╝██║  ██║╚██████╔╝   ███████║██║     ███████╗╚██████╗
   ╚═════╝ ╚═╝  ╚═╝ ╚═════╝    ╚══════╝╚═╝     ╚══════╝ ╚═════╝
 
-  AI AGENT — IMPLEMENTATION SPEC
+  AI AGENT — IMPLEMENTATION SPECIFICATION
   ═══════════════════════════════════════════════════════════════
-  This README is simultaneously:
-    (a) End-user marketing documentation
-    (b) A complete machine-readable implementation specification
-
   ARCHITECTURE CONTRACT
   ──────────────────────────────────────────────────────────────
-  Base class  : opc.layer3_agent.adapters.base.ExternalAgentAdapter
+  Base Class  : opc.layer3_agent.adapters.base.ExternalAgentAdapter
   Registry    : ADAPTER_CLASSES["shadow"] = ShadowModeAdapter
   execute()   : MUST return TaskResult(AWAITING_HUMAN) in < 100ms
-                MUST NOT hold the calling thread
+                MUST NOT hold the calling execution thread
   resume_task(): MUST write Phase.APPROVED to OpenOPC store.db
                  MUST use SQLite WAL mode for concurrent-safe access
 
   PHASE TRANSITION CONTRACT
   ──────────────────────────────────────────────────────────────
-  RUNNING          → AWAITING_HUMAN    via execute() return value
-  AWAITING_HUMAN   → APPROVED          via resume_task() WAL write
-  AWAITING_HUMAN   → READY_FOR_REWORK  via contractor rework request
-  READY_FOR_REWORK → AWAITING_HUMAN    via AI agent re-run
-  APPROVED         → DONE              via OpenOPC native phase hooks
+  RUNNING          -> AWAITING_HUMAN    via execute() return value
+  AWAITING_HUMAN   -> APPROVED          via resume_task() WAL write
+  AWAITING_HUMAN   -> READY_FOR_REWORK  via contractor rework request
+  READY_FOR_REWORK -> AWAITING_HUMAN    via AI agent re-run
+  APPROVED         -> DONE              via OpenOPC native phase hooks
 
-  IMPLEMENTATION CHECKLIST (100% Completed)
+  IMPLEMENTATION CHECKLIST
   ──────────────────────────────────────────────────────────────
-  [x] shadow_adapter/adapter.py      — ShadowModeAdapter class
-  [x] shadow_adapter/api/app.py      — FastAPI app & shadow-serve CLI
-  [x] shadow_adapter/api/routes_*.py — Versioned /api/v1 REST endpoints
-  [x] shadow_adapter/models.py       — Pydantic v2 models: ShadowTask, ShadowContractor
-  [x] shadow_adapter/security.py     — JWT issuance + bcrypt verification
-  [x] shadow_adapter/shadow_store.py — SQLite WAL repository for shadow_tasks.db
-  [x] shadow_adapter/upload.py       — File validation: ≤5 files, ≤10MB, ≤50MB total
-  [x] shadow_adapter/exceptions.py   — Domain exceptions for N-Tier separation
-  [x] shadow_adapter/frontend/       — React 19 + Tailwind SPA (dist/ pre-built)
-  [x] tests/test_adapter.py          — Unit tests: execute() < 50ms, state transitions
-  [x] tests/test_api.py              — Integration tests: all REST endpoints
-  [x] tests/test_shadow_store.py     — WAL concurrency tests with mock store.db
-  [x] pyproject.toml                 — Package metadata & 20 SEO keywords
-  [x] example_usage.py               — Full demo: park → submit → resume in < 500ms
-
-  DATABASE SCHEMA (shadow_tasks.db)
-  ──────────────────────────────────────────────────────────────
-  shadow_tasks:  id, opc_task_id, opc_session_id, title, brief_md,
-                 priority, status, claimed_by, parked_at, claimed_at,
-                 submitted_at, resumed_at, deliverable_text, file_paths
-  audit_log:     id, task_id, event_type, actor, timestamp, metadata_json
-  contractors:   id, username, email, password_hash, role, created_at
-
-  VERIFY: pytest tests/ -v --cov=shadow_adapter --cov-report=term-missing
+  [x] shadow_adapter/adapter.py      - ShadowModeAdapter class
+  [x] shadow_adapter/api/app.py      - FastAPI application & shadow-serve CLI
+  [x] shadow_adapter/api/routes_*.py - Versioned /api/v1 REST endpoints
+  [x] shadow_adapter/models.py       - Pydantic v2 models: ShadowTask, ShadowContractor
+  [x] shadow_adapter/security.py     - JWT issuance + bcrypt verification
+  [x] shadow_adapter/shadow_store.py - SQLite WAL repository for shadow_tasks.db
+  [x] shadow_adapter/upload.py       - File validation: max 5 files, 10MB each, 50MB total
+  [x] shadow_adapter/exceptions.py   - Domain exceptions for N-Tier separation
+  [x] shadow_adapter/frontend/       - React 19 + Tailwind SPA (dist/ pre-built)
+  [x] tests/test_adapter.py          - Unit tests: execute() < 50ms, state transitions
+  [x] tests/test_api.py              - Integration tests: all REST endpoints
+  [x] tests/test_shadow_store.py     - WAL concurrency tests with mock store.db
+  [x] pyproject.toml                 - Package metadata & 20 SEO keywords
+  [x] example_usage.py               - Full demo: park -> submit -> resume in < 500ms
   ============================================================ -->
 
 <div align="center">
@@ -63,43 +49,64 @@
 
 ### Human-in-the-Loop (HITL) Execution Layer for the OpenOPC Multi-Agent DAG Runtime
 
-**The missing production layer between your autonomous AI company and the real human decisions it can't make alone.**
+**The non-blocking bridge connecting autonomous AI agent workflows with real-world human approvals.**
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://pypi.org/project/openopc-shadow-adapter/)
 [![PyPI Version](https://img.shields.io/pypi/v/openopc-shadow-adapter?style=for-the-badge&color=0c111b&label=PyPI)](https://pypi.org/project/openopc-shadow-adapter/)
 [![MIT License](https://img.shields.io/badge/license-MIT-22c55e?style=for-the-badge)](LICENSE)
 
-[![FastAPI](https://img.shields.io/badge/backend-FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white)]()
-[![React 19](https://img.shields.io/badge/portal-React%2019%20+%20Tailwind-61DAFB?style=flat-square&logo=react&logoColor=black)]()
-[![SQLite WAL](https://img.shields.io/badge/storage-SQLite%20WAL-003B57?style=flat-square&logo=sqlite&logoColor=white)]()
-[![JWT Auth](https://img.shields.io/badge/auth-JWT%20+%20bcrypt-F59E0B?style=flat-square)]()
-[![Zero Mods](https://img.shields.io/badge/core%20modifications-zero-ef4444?style=flat-square)]()
-[![OpenOPC](https://img.shields.io/badge/ecosystem-OpenOPC-6366f1?style=flat-square)](https://github.com/HKUDS/OpenOPC)
+[![FastAPI](https://img.shields.io/badge/backend-FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
+[![React 19](https://img.shields.io/badge/portal-React%2019%20%2B%20Tailwind-61DAFB?style=flat-square&logo=react&logoColor=black)](https://github.com/AhmadHassan-BTed/OpenOPC-Shadow-Adapter)
+[![SQLite WAL](https://img.shields.io/badge/storage-SQLite%20WAL-003B57?style=flat-square&logo=sqlite&logoColor=white)](https://www.sqlite.org/wal.html)
+[![JWT Auth](https://img.shields.io/badge/auth-JWT%20%2B%20bcrypt-F59E0B?style=flat-square)](https://jwt.io)
+[![Zero Core Modifications](https://img.shields.io/badge/core%20modifications-zero-ef4444?style=flat-square)](https://github.com/AhmadHassan-BTed/OpenOPC-Shadow-Adapter)
+[![OpenOPC Ecosystem](https://img.shields.io/badge/ecosystem-OpenOPC-6366f1?style=flat-square)](https://github.com/HKUDS/OpenOPC)
 
 <br/>
 
-> Built for [OpenOPC](https://github.com/HKUDS/OpenOPC) · Zero core modifications · Production-ready v0.1.0
+> Built for [OpenOPC](https://github.com/HKUDS/OpenOPC) | Zero Core Modifications | Production Release v0.1.0
 
 </div>
 
 ---
 
-## 🗺️ At a Glance
+## Executive Summary
+
+### What This Software Does (Plain Language)
+
+[**OpenOPC**](https://github.com/HKUDS/OpenOPC) allows organizations to deploy automated teams of AI agents. These agents work together to research, code, draft documentation, analyze data, and review each other's work at machine speed (milliseconds to seconds).
+
+However, every enterprise workflow eventually reaches a task that **must be approved by a real human being** — such as a lawyer reviewing a contract, a senior engineer approving a server deployment, or a financial officer authorizing an expenditure.
+
+#### The Problem
+OpenOPC expects tasks to complete almost instantly. If an AI agent pauses and waits for a human who takes hours or days to respond, **the system's internal timer expires (900-second limit) and the entire automated pipeline crashes.**
+
+#### The Solution
+`openopc-shadow-adapter` acts as an intelligent holding area ("Shadow Mode"):
+
+1. **Pauses Safely:** When an AI workflow reaches a human approval step, the adapter saves the task to a secure database in less than 50 milliseconds.
+2. **Releases Execution:** It frees the AI system immediately so all other non-dependent AI tasks continue running without interruption.
+3. **Notifies Humans:** The human reviewer receives the assignment in a web portal, reviews the full context generated by the AI, and submits their decision.
+4. **Resumes Automatically:** The moment the human approves, the adapter wakes up the AI system, and execution continues automatically.
+
+---
+
+## High-Level Architecture Overview
 
 ```mermaid
 flowchart LR
-    DAG["🤖 OpenOPC\nAI Company\nRunning"]
-    SA["⏸️ Shadow\nAdapter"]
-    DB[("💾 SQLite\nshadow_tasks.db")]
-    Portal["🌐 React\nHuman Portal"]
-    Resume(["✅ DAG\nResumes"])
+    DAG["OpenOPC AI\nWorkflow Engine"]
+    SA["Shadow Mode\nAdapter"]
+    DB[("SQLite Store\nshadow_tasks.db")]
+    Portal["React Human\nWeb Portal"]
+    Resume(["OpenOPC DAG\nResumes"])
 
-    DAG -->|task needs human| SA
-    SA -->|parks safely · 47ms| DB
-    SA -->|returns AWAITING_HUMAN\nthread released instantly| DAG
-    DAG -->|parallel branches\ncontinue without waiting| Resume
+    DAG -->|Task needs human sign-off| SA
+    SA -->|Parks task in 47ms| DB
+    SA -->|Returns AWAITING_HUMAN\nReleases execution lock| DAG
+    DAG -->|Parallel AI tasks\ncontinue running| Resume
     DB --> Portal
-    Portal -->|contractor submits\ndeliverable| Resume
+    Portal -->|Human contractor submits\napproval or deliverable| Resume
 
     style SA fill:#6366f1,color:#fff,stroke:#4f46e5
     style Resume fill:#22c55e,color:#fff,stroke:#16a34a
@@ -108,722 +115,348 @@ flowchart LR
 
 ---
 
-## 💡 What Is This? (Plain English)
+## System Capabilities & Comparison
 
-[**OpenOPC**](https://github.com/HKUDS/OpenOPC) lets you build an **AI-native company** — a team of AI agents that plan, delegate, execute, and review work autonomously, orchestrated through a **dependency DAG** where independent tasks run in parallel and dependent tasks wait for their prerequisites.
-
-This is extraordinary for anything a machine can do at machine speed: research, coding, drafting, testing, formatting, analysis.
-
-But every real business reaches a moment where **a human must step in.** A lawyer signs a contract. A senior engineer approves a production deploy. A compliance officer clears a risk assessment. A creative director greenlights a campaign.
-
-**The problem:** OpenOPC runs on millisecond-to-minute timescales. The moment you try to pause and wait for a human operating on a *human* timescale — hours or days — **the 900-second execution lock expires and the entire DAG crashes.**
-
-`openopc-shadow-adapter` is the production-safe bridge. It **intercepts** tasks routed to human-backed roles, **parks** them in an isolated state store, and immediately **releases** the execution thread — so the rest of your AI company keeps working. When the human contractor logs into the **React Human Portal**, reviews the brief, and submits their deliverable, the adapter **resumes the DAG automatically** via a direct write to OpenOPC's phase store.
-
-**Your AI company runs itself. You — or your contractors — only touch the decisions that truly require a human.**
+| Scenario | Standard OpenOPC | OpenOPC + Shadow Adapter |
+|:---|:---|:---|
+| **Human response under 60 seconds** | Supported | Supported |
+| **Human response taking hours or days** | System failure (900s timeout crash) | Supported (zero timeouts) |
+| **System restart while waiting** | State lost | State persisted in isolated SQLite database |
+| **Multiple human reviewers** | Single local user only | Multi-user queue with role-based access |
+| **Contractor file attachments** | Text only | Supported (up to 5 files, 50MB payload) |
+| **Compliance audit trail** | Basic log | Immutable event timeline with user attribution |
+| **Rework loop** | Manual intervention required | Built-in request-for-rework phase transition |
 
 ---
 
-## 🚨 The Problem This Solves
+## Core Use Cases
 
-OpenOPC documents their human escalation in one sentence: *"when a blocker exceeds the team's authority, the runtime escalates to the human owner."* What OpenOPC does **not** provide is a mechanism for that escalation to survive the time it takes a human to actually respond.
+### 1. Augmenting Vacant or Overloaded Roles
+When an organization faces a temporary staffing gap (e.g., a vacant legal reviewer or overloaded QA engineer), OpenOPC AI agents perform 90% of the preliminary work — researching precedents, drafting documents, running automated tests, and formatting reports. Shadow Adapter routes only the final 10% (the approval decision) to an available human manager.
 
-| Scenario | Without Shadow Adapter | With Shadow Adapter |
-|----------|----------------------|---------------------|
-| Human responds in 10 minutes | 💥 Timeout crash at 900s | ✅ Resumes automatically |
-| Human responds in 2 hours | 💥 Timeout crash at 900s | ✅ Resumes automatically |
-| Human responds in 2 days | 💥 Timeout crash at 900s | ✅ Resumes automatically |
-| OpenOPC engine restarts while waiting | 💥 Task state lost | ✅ Persists in isolated DB |
-| Multiple contractors reviewing | ❌ Not supported | ✅ Claim/unclaim queue |
-| File uploads from contractors | ❌ Not supported | ✅ Multi-file upload |
-| Audit trail for compliance | ❌ Not supported | ✅ Immutable event log |
+### 2. Autonomous Business Operations for Solo Operators
+Founders, consultants, and solo practitioners can run entire AI-driven business functions (research, development, marketing, legal drafting) on autopilot. The operator receives notifications only when a strategic decision, financial sign-off, or client deliverable requires executive authorization.
+
+### 3. Regulatory & Enterprise Compliance Checkpoints
+In regulated industries (finance, healthcare, legal, security), compliance frameworks (SOC 2, ISO 27001, GDPR) prohibit fully autonomous machine decisions without verified human oversight. Shadow Adapter provides cryptographic user authentication, strict upload controls, and immutable audit logs to satisfy compliance requirements.
 
 ---
 
-## 👥 Use Cases
-
-### 🏢 Use Case 1 — Automate Roles in Your Existing Organization
-
-> *You lost a developer. Your legal reviewer is on leave. Your analyst is at capacity.*
-> **Don't halt operations. Deploy the adapter.**
-
-```mermaid
-flowchart TD
-    Start(["🏢 Your Organization\nHas a Vacant or Overloaded Role"])
-
-    Start --> AI
-    AI["🤖 AI Shadow Agent\nHandles 90% of the Work\n────────────────────\n✦ Research & analysis\n✦ Drafting & writing\n✦ Code generation & testing\n✦ Formatting & communication\n✦ Review & quality checking"]
-
-    AI -->|Reaches a task requiring\nhuman authority or judgment| SA
-
-    SA["⏸️ Shadow Adapter\nIntercepts the Task\n────────────────────\nParks in shadow_tasks.db\nReturns AWAITING_HUMAN\nReleases DAG thread"]
-
-    SA --> Portal
-    Portal["📬 React Human Portal\n────────────────────\nAvailable team member\nreceives task in queue\nReviews full AI context\nSubmits decision"]
-
-    Portal --> Human{Human Decision}
-
-    Human -->|✅ Approved| Resume
-    Human -->|🔄 Needs rework| Feedback
-    Feedback --> AI
-
-    Resume(["🚀 DAG Resumes\nAll downstream tasks\nunblock automatically"])
-
-    style AI fill:#1e293b,color:#94a3b8,stroke:#334155
-    style SA fill:#6366f1,color:#fff,stroke:#4f46e5
-    style Resume fill:#22c55e,color:#fff,stroke:#16a34a
-    style Portal fill:#0c111b,color:#94a3b8,stroke:#334155
-```
-
-**Real-world examples:**
-
-- **Lost your senior developer?** AI writes, reviews, and tests code. Shadow Adapter routes production deploys and architecture decisions to a remaining engineer for approval only.
-- **Need legal coverage?** AI drafts contracts and flags risk clauses. Shadow Adapter sends the final document to your counsel for sign-off.
-- **Scaling a content operation?** AI researches, drafts, and formats every piece. Shadow Adapter queues each one for an editor's final approval before publishing.
-- **Financial analysis pipeline?** AI builds models and writes memos. Shadow Adapter routes investment committee decisions to your analysts for approval.
-
----
-
-### 🚀 Use Case 2 — Run Your Entire Company on AI Autopilot
-
-> *One person. The output of a 10-person team.*
-> **You oversee. The AI executes. The adapter bridges the gap.**
-
-```mermaid
-flowchart TD
-    You(["👤 YOU\nThe Solo Operator\nFreelancer · Founder · Consultant"])
-
-    You -->|Only reviews items\nthat need your authority| Queue
-
-    Queue["📬 Your Approval Queue\n────────────────────\n✦ Strategic decisions\n✦ Client deliverables\n✦ Sensitive sign-offs\n✦ Creative direction\n✦ Financial authorization"]
-
-    Queue -->|Your approved decisions\nresume the DAG| Company
-
-    subgraph Company["🏢 Your AI Company — Runs Autonomously on OpenOPC"]
-        direction LR
-        Research["🔬 AI Research\nAnalyst\n──────────\nMarket maps\nDue diligence\nCompetitive intel"]
-        Dev["💻 AI Dev\nTeam\n──────────\nWrites code\nReviews PRs\nFixes bugs"]
-        Marketing["📣 AI Marketing\n & Content\n──────────\nWrites copy\nCreates briefs\nDrafts emails"]
-        Legal["⚖️ AI Legal\nCounsel\n──────────\nDrafts contracts\nFlags risks\nFormats filings"]
-    end
-
-    Company -->|Hits human-only\ncheckpoints| Queue
-
-    style You fill:#22c55e,color:#fff,stroke:#16a34a
-    style Queue fill:#6366f1,color:#fff,stroke:#4f46e5
-```
-
-**What this means in practice:**
-
-- Your AI Research Analyst runs market analysis, competitor mapping, and due diligence — 24/7, across dozens of projects simultaneously.
-- Your AI Dev Team writes features, runs tests, and reviews PRs — you only approve production deployments and architectural pivots.
-- Your AI Legal Counsel drafts all contracts and NDAs — you spend 10 minutes reviewing rather than 4 hours drafting.
-- The Shadow Adapter is the invisible infrastructure that makes all of this safe, audit-compliant, and crash-proof.
-
----
-
-### 🏛️ Use Case 3 — Enterprise Compliance & Regulated Industry Workflows
-
-For teams building AI automation in **finance, legal, healthcare, or security**, regulatory requirements mandate human sign-off at defined workflow stages. Shadow Adapter makes compliance a **first-class architectural feature** — not an afterthought patched onto an autonomous pipeline.
-
-The adapter's immutable audit log records every lifecycle event with timestamps and contractor attribution, satisfying SOC 2, ISO 27001, and GDPR review requirements for human oversight in automated decision systems.
-
----
-
-## ⚙️ How It Works
+## Technical Lifecycle & Sequence
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant OPC as OpenOPC DAG Engine
-    participant SA as Shadow Adapter
-    participant DB as shadow_tasks.db
+    participant Engine as OpenOPC DAG Engine
+    participant Adapter as Shadow Mode Adapter
+    participant Store as shadow_tasks.db
     participant API as FastAPI Server
-    participant Portal as React Portal
-    participant H as Human Contractor
+    participant Web as React Web Portal
+    participant User as Human Reviewer
 
-    OPC->>SA: execute(task, context, role="shadow")
-    SA->>DB: INSERT ShadowTask (status=PENDING)
-    SA-->>OPC: TaskResult(AWAITING_HUMAN) ⚡ < 50ms
+    Engine->>Adapter: execute(task, role="shadow")
+    Adapter->>Store: Save task record (status = PENDING)
+    Adapter-->>Engine: TaskResult(status = AWAITING_HUMAN) [Execution lock released < 50ms]
 
-    Note over OPC: Thread released immediately.<br>Parallel DAG branches continue<br>without waiting for the human.
+    Note over Engine: Other independent AI tasks continue running in parallel.
 
-    Note over DB,H: ── Human timescale: minutes to days ──
+    User->>Web: Access portal & authenticate (JWT)
+    Web->>API: Fetch pending tasks
+    API->>Store: Query pending tasks
+    Store-->>API: Task records & AI context
+    API-->>Web: Display task queue
+    
+    User->>Web: Claim task & submit deliverable / approval
+    Web->>API: POST /api/v1/tasks/{id}/submit (notes + attachments)
+    API->>Store: Update task record (status = SUBMITTED)
+    API->>Adapter: Trigger resume pipeline
+    Adapter->>Engine: Direct WAL write to store.db (Phase = APPROVED)
 
-    H->>Portal: Login (POST /api/auth/login → JWT)
-    Portal->>API: GET /api/tasks?status=pending
-    API->>DB: SELECT * FROM shadow_tasks WHERE status=PENDING
-    DB-->>API: task list
-    API-->>Portal: tasks
-    Portal-->>H: Dashboard queue with task briefs
-
-    H->>Portal: Claim task
-    Portal->>API: POST /api/tasks/{id}/claim
-    API->>DB: UPDATE status=CLAIMED, claimed_by=contractor_id
-
-    H->>Portal: Review brief + submit deliverable + upload files
-    Portal->>API: POST /api/tasks/{id}/submit (multipart)
-    API->>DB: UPDATE status=SUBMITTED, deliverable_text=..., file_paths=[...]
-    API->>SA: resume_task(task_id, deliverable)
-    SA->>OPC: WAL write → store.db: Phase=APPROVED
-
-    Note over OPC: Phase hooks fire automatically.<br>Downstream DAG nodes become runnable.<br>Execution resumes. 🚀
+    Note over Engine: Phase hooks trigger automatically. Downstream tasks unblock and resume execution.
 ```
-
-### The 4-Phase HITL Lifecycle
-
-| Phase | What Happens | Actor | Typical Duration |
-|-------|-------------|-------|-----------------|
-| **① INTERCEPT** | Task routed to `shadow` role. `ShadowModeAdapter.execute()` is called. | System | < 10ms |
-| **② PARK** | Task serialized to `shadow_tasks.db`. `TaskResult(AWAITING_HUMAN)` returned. Thread released. | System | < 50ms total |
-| **③ WORK** | Human logs in. Claims task. Reviews AI-generated brief and context. Uploads deliverable. | Human Contractor | Minutes → Days |
-| **④ RESUME** | `resume_task()` writes `Phase.APPROVED` to OpenOPC `store.db` via WAL. Phase hooks fire. Downstream nodes unblock. | System | < 100ms |
 
 ---
 
-## 🔄 Phase State Machine
+## State Machine Integration
+
+The adapter integrates directly into OpenOPC's native `Phase` state machine without modifying host source code:
 
 ```mermaid
 stateDiagram-v2
     direction LR
 
-    [*] --> RUNNING : Task dispatched to shadow role
+    [*] --> RUNNING : Task assigned to shadow role
+    RUNNING --> AWAITING_HUMAN : execute() returns AWAITING_HUMAN (< 50ms)
+    AWAITING_HUMAN --> CLAIMED : Reviewer claims task in portal
+    CLAIMED --> AWAITING_HUMAN : Reviewer unclaims task
+    CLAIMED --> SUBMITTED : Reviewer submits approval/deliverable
+    SUBMITTED --> APPROVED : resume_task() WAL write to store.db
+    SUBMITTED --> READY_FOR_REWORK : Reviewer requests changes
+    READY_FOR_REWORK --> AWAITING_HUMAN : AI agent re-runs with feedback
+    APPROVED --> DONE : OpenOPC unblocks downstream DAG nodes
 
-    RUNNING --> AWAITING_HUMAN : adapter.execute() returns\nTaskResult in < 50ms.\nThread released.
-
-    AWAITING_HUMAN --> CLAIMED : Contractor claims\ntask in portal
-
-    CLAIMED --> AWAITING_HUMAN : Contractor unclaims\n(back to queue)
-
-    CLAIMED --> SUBMITTED : Contractor submits\ndeliverable + files
-
-    SUBMITTED --> APPROVED : resume_task() WAL\nwrite to store.db
-
-    SUBMITTED --> READY_FOR_REWORK : Contractor requests\nchanges + feedback
-
-    READY_FOR_REWORK --> AWAITING_HUMAN : AI agent re-runs\ntask with feedback
-
-    APPROVED --> DONE : OpenOPC phase hooks fire.\nDownstream DAG nodes\nbecome runnable.
-
-    AWAITING_HUMAN --> FAILED : Resume pipeline error
-    CLAIMED --> CANCELLED : Admin cancels task
+    AWAITING_HUMAN --> FAILED : System error
+    CLAIMED --> CANCELLED : Admin cancellation
 
     DONE --> [*]
     FAILED --> [*]
     CANCELLED --> [*]
 ```
 
-> **Key insight:** `AWAITING_HUMAN` is a **non-runnable, non-blocking** phase in OpenOPC's state machine. The engine releases its execution lock the moment this phase is entered, allowing every parallel, non-dependent branch in the DAG to continue running without waiting.
-
 ---
 
-## 🏗️ System Architecture
+## System Architecture
 
 ```mermaid
 flowchart TD
-    subgraph OPC["OpenOPC DAG Engine  (HKUDS/OpenOPC)"]
+    subgraph Host ["OpenOPC Framework Environment (HKUDS/OpenOPC)"]
         direction LR
-        AgentA["AI Agent\nnative"]
-        AgentB["AI Agent\ncodex"]
-        AgentC["AI Agent\nclaude_code"]
-        ShadowRole["Human Role\npreferred_external_agent: shadow"]
+        NativeAgent["Native AI Agent"]
+        CodexAgent["Codex Agent"]
+        ClaudeAgent["Claude Agent"]
+        ShadowRole["Role Configured with\npreferred_external_agent: shadow"]
     end
 
-    subgraph Adapter["openopc-shadow-adapter  (this package)"]
-        Core["ShadowModeAdapter\nadapter.py\n──────────────────\nexecute() → AWAITING_HUMAN\nresume_task() → APPROVED"]
-        API["FastAPI Server\napi.py\n──────────────────\nPOST /api/auth/login\nGET  /api/tasks\nPOST /api/tasks/id/claim\nPOST /api/tasks/id/submit\nGET  /api/tasks/id/audit"]
-        DB[("shadow_tasks.db\nIsolated SQLite\n──────────────────\nshadow_tasks\naudit_log\ncontractors")]
-        SPA["React 19 SPA\nfrontend/dist\n──────────────────\nLogin + JWT\nTask Dashboard\nTask Detail View\nMulti-file Upload\nAudit Timeline"]
+    subgraph Package ["openopc-shadow-adapter Package"]
+        AdapterCore["ShadowModeAdapter\n(adapter.py)\n────────────────────────\nexecute() -> AWAITING_HUMAN\nresume_task() -> APPROVED"]
+        APIServer["FastAPI Server\n(shadow_adapter/api/app.py)\n────────────────────────\n/api/v1/auth\n/api/v1/tasks\n/api/v1/health"]
+        Database[("SQLite Database\n(shadow_tasks.db)\n────────────────────────\nshadow_tasks\naudit_log\ncontractors")]
+        WebPortal["React 19 SPA\n(shadow_adapter/frontend/dist)\n────────────────────────\nJWT Auth & Management\nTask Queue Dashboard\nMulti-file Upload Engine\nAudit Timeline View"]
     end
 
-    OPCStore[("OpenOPC\nstore.db\nWAL mode")]
-    Contractor(["👤 Human Contractor\nhttp://localhost:8800"])
+    OPCDatabase[("OpenOPC store.db\n(SQLite WAL Mode)")]
+    HumanUser(["Human Reviewer / Contractor\n(Web Browser)"])
 
-    ShadowRole -->|ADAPTER_CLASSES\n'shadow'| Core
-    Core -->|park task| DB
-    Core -->|WAL write\nPhase.APPROVED| OPCStore
-    OPCStore -->|phase hooks\nfire| OPC
-    API <--> DB
-    Contractor --> SPA
-    SPA <-->|REST + JWT| API
+    ShadowRole -->|ADAPTER_CLASSES registration| AdapterCore
+    AdapterCore -->|Persist parked task| Database
+    AdapterCore -->|WAL write Phase.APPROVED| OPCDatabase
+    OPCDatabase -->|Native phase hooks| Host
+    APIServer <--> Database
+    HumanUser --> WebPortal
+    WebPortal <-->|REST API + JWT| APIServer
 
-    style Core fill:#6366f1,color:#fff,stroke:#4f46e5
-    style OPCStore fill:#0c111b,color:#94a3b8,stroke:#334155
-    style DB fill:#0c111b,color:#94a3b8,stroke:#334155
-    style Contractor fill:#22c55e,color:#fff,stroke:#16a34a
+    style AdapterCore fill:#6366f1,color:#fff,stroke:#4f46e5
+    style OPCDatabase fill:#0c111b,color:#94a3b8,stroke:#334155
+    style Database fill:#0c111b,color:#94a3b8,stroke:#334155
+    style HumanUser fill:#22c55e,color:#fff,stroke:#16a34a
 ```
 
 ---
 
-## 🚀 Quick Start
+## Quick Start Guide
 
-### 1 — Install
+### 1. Installation
+
+Install via `pip`:
 
 ```bash
 pip install openopc-shadow-adapter
-# recommended for OpenOPC projects:
+```
+
+Or using `uv`:
+
+```bash
 uv pip install openopc-shadow-adapter
 ```
 
-### 2 — Configure
+### 2. Environment Configuration
 
-```bash
-cp .env.example .env
-```
+Create a `.env` file in your root working directory:
 
 ```env
-# .env — required for production
-SHADOW_JWT_SECRET=minimum-32-character-secret-key-change-this
+SHADOW_JWT_SECRET=specify-a-secure-secret-key-with-minimum-32-characters
 SHADOW_DB_PATH=./shadow_tasks.db
 SHADOW_OPC_STORE_PATH=.opc/projects/default/store.db
 SHADOW_UPLOAD_DIR=./shadow_uploads
 SHADOW_API_PORT=8800
 ```
 
-### 3 — Register the Adapter
+### 3. Adapter Registration
 
-Add this **before** OpenOPC initializes — one line, zero core modifications:
+Register the adapter in your application initialization code **before** starting the OpenOPC engine:
 
 ```python
-# app_entrypoint.py
 from opc.layer3_agent.adapters.registry import ADAPTER_CLASSES
 from shadow_adapter.adapter import ShadowModeAdapter
 
-ADAPTER_CLASSES["shadow"] = ShadowModeAdapter  # ← entire integration
+# Register Shadow Mode into OpenOPC's adapter registry
+ADAPTER_CLASSES["shadow"] = ShadowModeAdapter
 ```
 
-### 4 — Mark Roles as Human-Backed
+### 4. Assign Shadow Roles in Organization Config
 
-In your OpenOPC Company Mode organization config:
+Configure target roles to use the `shadow` adapter in your OpenOPC organization YAML file:
 
 ```yaml
-# .opc/config/company_orgs/my_company_config.yaml
+# .opc/config/company_orgs/company_config.yaml
 roles:
-  legal_reviewer:
+  legal_counsel:
     title: "Human Legal Counsel"
     execution_strategy: external
-    preferred_external_agent: shadow  # ← routes to Shadow Adapter
-
-  senior_engineer:
-    title: "Human Senior Engineer"
-    execution_strategy: external
     preferred_external_agent: shadow
 
-  creative_director:
-    title: "Human Creative Director"
+  senior_architect:
+    title: "Human Senior Architect"
     execution_strategy: external
     preferred_external_agent: shadow
 ```
 
-Or via CLI in Task Mode:
+### 5. Launch Server
+
+Start the REST API server and React Human Web Portal:
 
 ```bash
-opc chat -p demo --mode task --agent shadow "Review and approve the NDA draft"
-```
-
-### 5 — Launch
-
-```bash
-# Starts FastAPI backend + serves React Human Portal
 shadow-serve --port 8800
-
-# Human Portal: http://localhost:8800
-# REST API:     http://localhost:8800/api
-# Health check: http://localhost:8800/api/health
 ```
 
-### 6 — Run the Full Demo
-
-```bash
-python example_usage.py
-```
-
-Expected output:
-
-```
-✓ ShadowModeAdapter registered in ADAPTER_CLASSES
-✓ Task "Review NDA Agreement" dispatched to shadow role
-✓ Intercepted — saved to shadow_tasks.db (status=PENDING)
-✓ Returned TaskStatus.AWAITING_HUMAN to OpenOPC       [47ms]
-✓ Execution thread released — DAG continues on parallel branches
-✓ Simulating contractor login and submission...
-✓ WAL write → store.db: Phase=APPROVED                [12ms]
-✓ Phase hooks fired — downstream DAG nodes unblocked
-✓ Full HITL lifecycle completed                       [312ms excl. human time]
-```
+- **Human Web Portal:** `http://localhost:8800`
+- **REST API Base:** `http://localhost:8800/api/v1`
+- **Health Endpoint:** `http://localhost:8800/api/v1/health`
 
 ---
 
-## 🌐 React Human Portal
+## Technical Specifications
 
-The Human Portal is a **React 19 + Tailwind CSS** single-page application styled with OpenOPC's native dark theme (`#0c111b`). Contractors never need access to your OpenOPC admin interface — they see only their assigned tasks.
+### Feature Matrix
 
-```
-PORTAL LAYOUT
-──────────────────────────────────────────────────────────────────────────────
-
-┌───────────────────────────────────────────────────────────────────────────┐
-│  ◆ SHADOW PORTAL                                  Ahmad Hassan  [logout]  │
-├─────────────────┬─────────────────────────────────────────────────────────┤
-│                 │  📋  NDA Agreement Review — Legal Counsel Role          │
-│  TASK QUEUE     │  ──────────────────────────────────────────────────    │
-│  ─────────────  │  Priority: HIGH  |  Parked: 3h ago  |  Claimed: You    │
-│  ● Pending   3  │                                                         │
-│  ○ Claimed   1  │  TASK BRIEF                                             │
-│  ○ Submitted 0  │  ┌──────────────────────────────────────────────────┐  │
-│  ○ Resumed   8  │  │ The AI legal team has drafted a vendor NDA for   │  │
-│                 │  │ the Acme Corp integration. Review sections 4.2   │  │
-│  FILTERS        │  │ (liability cap) and 7.1 (data processing terms). │  │
-│  ─────────────  │  │ Attached: draft_nda_v3.pdf, risk_summary.md      │  │
-│  ○ All          │  └──────────────────────────────────────────────────┘  │
-│  ○ Mine only    │                                                         │
-│  ○ High prio    │  AUDIT TRAIL                                            │
-│                 │  ┌──────────────────────────────────────────────────┐  │
-│                 │  │  ● 09:14 — Task parked by OpenOPC DAG            │  │
-│                 │  │  ● 09:17 — Claimed by Ahmad Hassan               │  │
-│                 │  └──────────────────────────────────────────────────┘  │
-│                 │                                                         │
-│                 │  YOUR DELIVERABLE                                       │
-│                 │  ┌──────────────────────────────────────────────────┐  │
-│                 │  │  Drop files or click to upload (≤5, ≤10MB each)  │  │
-│                 │  └──────────────────────────────────────────────────┘  │
-│                 │  ┌──────────────────────────────────────────────────┐  │
-│                 │  │  Decision notes (markdown supported)...           │  │
-│                 │  └──────────────────────────────────────────────────┘  │
-│                 │                                                         │
-│                 │  [ Request Rework ]        [ ✓  Approve & Resume DAG ] │
-└─────────────────┴─────────────────────────────────────────────────────────┘
-```
-
-| Portal Feature | Implementation Details |
-|---------------|----------------------|
-| **JWT Login / Register** | bcrypt-hashed passwords. First registered user auto-becomes `admin`. Subsequent users require admin invite. |
-| **Task Queue Dashboard** | Cards for Pending / Claimed / Submitted / Resumed. Filter by status, priority, or `assigned_to_me`. |
-| **Full Task Brief** | Markdown-rendered AI-generated brief, full OpenOPC task metadata, priority badge, attached context files. |
-| **Multi-File Upload** | Browser-enforced dropzone: ≤5 files, ≤10MB each, ≤50MB total. Server-side extension allowlist enforced. |
-| **Rework Request** | Contractor submits structured feedback. DAG transitions to `READY_FOR_REWORK`. AI re-runs with feedback. |
-| **Immutable Audit Trail** | Every lifecycle event logged: parked → claimed → submitted → resumed. Timestamps + contractor attribution. |
-
-Build the frontend from source:
-
-```bash
-cd shadow_adapter/frontend
-npm install && npm run build
-# Compiled dist/ is served automatically by shadow-serve
-```
+| Feature | Implementation | Engineering Rationale |
+|:---|:---|:---|
+| **Zero Core Modifications** | Extends `ExternalAgentAdapter` via `ADAPTER_CLASSES` | Clean separation of concerns; immune to breaking upstream OpenOPC releases |
+| **Non-Blocking Intercept** | `execute()` returns `TaskResult` in under 50ms | Prevents engine thread starvation and bypasses the 900s timeout |
+| **Isolated Persistence** | Standalone `shadow_tasks.db` SQLite database | Preserves task state independently of host engine lifecycles |
+| **WAL-Mode Resume Pipeline** | Concurrent writes via `aiosqlite` WAL connection | Allows safe concurrent database access between live OpenOPC engine and API server |
+| **Role-Based Access Control** | JWT authentication + bcrypt password hashing | Ensures review tasks are restricted to authorized human contractors |
+| **Upload Security Controls** | Path sanitization, extension allowlist, payload limits | Enforces maximum 5 files, 10MB per file, 50MB total payload to prevent server abuse |
+| **Immutable Audit Logging** | Trigger-backed `audit_log` table | Tracks all lifecycle transitions (`parked`, `claimed`, `submitted`, `resumed`) for compliance verification |
 
 ---
 
-## ✅ Feature Matrix
+## API Endpoint Reference
 
-| Feature | Behavior | Why It Matters |
-|---------|----------|----------------|
-| **Zero Core Modifications** | Extends `ExternalAgentAdapter` via public `ADAPTER_CLASSES` registry | Survives every upstream OpenOPC update — no merge conflicts, ever |
-| **Non-Blocking Park** | Returns `TaskResult(AWAITING_HUMAN)` in < 50ms | Bypasses OpenOPC's 900-second broker timeout completely |
-| **Isolated State Store** | Dedicated `shadow_tasks.db` separate from OpenOPC's `store.db` | Parked tasks survive engine restarts, crashes, and long idle periods |
-| **WAL-Mode Resume** | Writes `Phase.APPROVED` to OpenOPC `store.db` via SQLite WAL mode | Concurrent-safe: live OpenOPC engine and Shadow Adapter access the DB simultaneously |
-| **Phase Hook Integration** | Sets native OpenOPC `Phase.APPROVED` — no custom polling | Downstream DAG nodes unblock via OpenOPC's own hook mechanism |
-| **JWT + bcrypt Auth** | Configurable secret, bcrypt password hashing | Contractors authenticate securely without internal OPC admin access |
-| **Role-Based Access Control** | `admin` / `contractor` roles. Admin manages accounts. | Separation of concerns between your operations team and contractors |
-| **Strict Upload Security** | Extension allowlist, path sanitization, size enforcement | Prevents directory traversal, malicious file types, and payload abuse |
-| **Rework Loop** | `READY_FOR_REWORK` → AI re-runs → `AWAITING_HUMAN` | Full iterative review cycle without manual DAG intervention |
-| **Immutable Audit Log** | `audit_log` table, append-only by design | SOC 2 / GDPR compliance: full human oversight trail with attribution |
-| **Design Coherence** | `#0c111b` dark theme matching OpenOPC's Office UI tokens | Portal feels native to your existing toolchain — zero visual context switch |
-| **Standalone CLI** | `shadow-serve --port 8800` | Runs independently from `opc ui` — separate process, separate lifecycle |
+All authenticated endpoints require an `Authorization: Bearer <jwt_token>` header.
 
----
+### Authentication Endpoints
 
-## 🌐 API Reference
+| Endpoint | Method | Access | Request Payload | Response |
+|:---|:---|:---|:---|:---|
+| `/api/v1/auth/register` | `POST` | Admin / Initial* | `{username, password, email}` | `ContractorPublic` object |
+| `/api/v1/auth/login` | `POST` | Public | `{username, password}` | `{access_token, token_type, contractor}` |
+| `/api/v1/auth/me` | `GET` | Authenticated | None | `ContractorPublic` profile |
 
-All authenticated endpoints require `Authorization: Bearer <jwt_token>`.
+*\*Note: The first user registered automatically receives the `admin` role.*
 
-### Auth Endpoints
+### Task Management Endpoints
 
-| Endpoint | Method | Auth | Body | Response |
-|----------|--------|------|------|----------|
-| `/api/auth/register` | `POST` | Admin JWT* | `{username, password, email}` | `{id, username, role}` |
-| `/api/auth/login` | `POST` | None | `{username, password}` | `{access_token, token_type}` |
-| `/api/auth/me` | `GET` | JWT | — | `{id, username, email, role}` |
-
-*First user auto-becomes admin without a token.*
-
-### Task Endpoints
-
-| Endpoint | Method | Auth | Params / Body | Description |
-|----------|--------|------|---------------|-------------|
-| `/api/tasks` | `GET` | JWT | `?status=pending&assigned_to_me=true&priority=high` | List parked tasks |
-| `/api/tasks/{id}` | `GET` | JWT | — | Full task brief, metadata, status |
-| `/api/tasks/{id}/claim` | `POST` | JWT | — | Claim task. Sets status=CLAIMED, claimed_by=you. |
-| `/api/tasks/{id}/unclaim` | `POST` | JWT | — | Release back to pending queue |
-| `/api/tasks/{id}/submit` | `POST` | JWT | Multipart: `notes`, `files[]` | Submit deliverable → triggers WAL resume |
-| `/api/tasks/{id}/audit` | `GET` | JWT | — | Full immutable event timeline |
-| `/api/health` | `GET` | None | — | `{status, pending_tasks, version}` |
-
-### Submit a Deliverable (Example)
-
-```bash
-curl -X POST http://localhost:8800/api/tasks/abc-def-123/submit \
-  -H "Authorization: Bearer eyJhbGci..." \
-  -F "notes=Approved. Section 4.2 liability cap is acceptable. See annotations in PDF." \
-  -F "files=@nda_annotated_v3.pdf" \
-  -F "files=@approval_memo.docx"
-```
-
-```json
-{
-  "task_id": "abc-def-123",
-  "opc_task_id": "opc-session-xyz-task-7",
-  "status": "APPROVED",
-  "resumed_at": "2026-07-25T14:23:01Z",
-  "opc_phase_updated": true,
-  "dag_nodes_unblocked": 3,
-  "audit_event_id": "evt-9f3a2b"
-}
-```
+| Endpoint | Method | Access | Parameters / Payload | Description |
+|:---|:---|:---|:---|:---|
+| `/api/v1/tasks` | `GET` | Authenticated | `?status=pending&assigned_to_me=true` | Query parked tasks with optional filtering |
+| `/api/v1/tasks/{id}` | `GET` | Authenticated | None | Retrieve complete task record, AI context, and brief |
+| `/api/v1/tasks/{id}/claim` | `POST` | Authenticated | None | Claim a pending task for the active contractor |
+| `/api/v1/tasks/{id}/unclaim` | `POST` | Authenticated | None | Release a claimed task back to the pending queue |
+| `/api/v1/tasks/{id}/submit` | `POST` | Authenticated | Multipart (`deliverable_text`, `files[]`) | Submit deliverable and trigger OpenOPC DAG resume |
+| `/api/v1/tasks/{id}/audit` | `GET` | Authenticated | None | Retrieve full audit trail for the task |
+| `/api/v1/health` | `GET` | Public | None | Server health status and pending task count |
 
 ---
 
-## ⚙️ Configuration Reference
+## Configuration Variable Reference
 
-| Environment Variable | Default | Required | Description |
-|---------------------|---------|----------|-------------|
-| `SHADOW_JWT_SECRET` | — | **Yes** | JWT signing secret. Minimum 32 characters. Rotate periodically in production. |
-| `SHADOW_DB_PATH` | `./shadow_tasks.db` | No | Path to the isolated Shadow task database. Created on first run. |
-| `SHADOW_OPC_STORE_PATH` | `.opc/projects/default/store.db` | No | Path to OpenOPC's live `store.db`. Used for WAL-mode Phase writes on resume. |
-| `SHADOW_UPLOAD_DIR` | `./shadow_uploads` | No | Directory for deliverable file storage. Created automatically if absent. |
-| `SHADOW_MAX_FILES_PER_SUBMISSION` | `5` | No | Maximum file attachments per contractor submission. |
-| `SHADOW_MAX_FILE_SIZE_MB` | `10` | No | Maximum size per individual uploaded file, in MB. |
-| `SHADOW_MAX_TOTAL_UPLOAD_SIZE_MB` | `50` | No | Maximum total payload per submission, in MB. |
-| `SHADOW_API_PORT` | `8800` | No | TCP port for FastAPI server and React portal. |
-
----
-
-## 🔍 Why Not Use OpenOPC's Built-In Human Escalation?
-
-OpenOPC includes a synchronous human escalation mechanism designed for **same-session, real-time** interactions: the human is at the terminal, sees the escalation, and responds immediately.
-
-`openopc-shadow-adapter` is designed for the opposite scenario: **asynchronous, multi-hour/day** human workflows where the contractor is not at the terminal.
-
-| Capability | OpenOPC Built-In Escalation | openopc-shadow-adapter |
-|-----------|---------------------------|----------------------|
-| Human responds immediately | ✅ Designed for this | ✅ Also works |
-| Human responds in hours/days | ❌ 900s timeout crash | ✅ Designed for this |
-| Contractor not at terminal | ❌ Requires active session | ✅ Web portal, any device |
-| Multiple contractors | ❌ Single human owner | ✅ Claim/unclaim queue |
-| File uploads | ❌ Text only | ✅ Multi-file, 50MB |
-| Audit trail | ❌ Not provided | ✅ Immutable event log |
-| Zero OpenOPC modifications | ✅ | ✅ |
-| Survives engine restart | ❌ In-memory state lost | ✅ Isolated SQLite DB |
-| Rework loop | ❌ | ✅ READY_FOR_REWORK phase |
-| JWT-secured contractor access | ❌ | ✅ |
+| Variable | Default Value | Required | Description |
+|:---|:---|:---|:---|
+| `SHADOW_JWT_SECRET` | None | **Yes** | Secret key for signing JWT tokens (minimum 32 characters). |
+| `SHADOW_DB_PATH` | `./shadow_tasks.db` | No | Target path for the isolated Shadow SQLite database. |
+| `SHADOW_OPC_STORE_PATH` | `.opc/projects/default/store.db` | No | Target path to OpenOPC's `store.db` for WAL resume writes. |
+| `SHADOW_UPLOAD_DIR` | `./shadow_uploads` | No | File system directory for storing deliverable attachments. |
+| `SHADOW_MAX_FILES_PER_SUBMISSION` | `5` | No | Maximum number of files permitted per submission. |
+| `SHADOW_MAX_FILE_SIZE_MB` | `10` | No | Maximum allowed size per file (in megabytes). |
+| `SHADOW_MAX_TOTAL_UPLOAD_SIZE_MB` | `50` | No | Maximum total upload payload per submission (in megabytes). |
+| `SHADOW_API_PORT` | `8800` | No | Network port for the FastAPI server and React SPA. |
 
 ---
 
-## 📦 Project Structure
+## Repository Structure
 
-```
+```text
 openopc-shadow-adapter/
-│
-├── shadow_adapter/                 # Core Python package
+├── shadow_adapter/                 # Core Python Package
 │   ├── __init__.py
-│   ├── adapter.py                  # ShadowModeAdapter (ExternalAgentAdapter subclass)
-│   ├── config.py                   # ShadowConfig Pydantic settings
+│   ├── adapter.py                  # ShadowModeAdapter implementation
+│   ├── config.py                   # Pydantic configuration settings
 │   ├── exceptions.py               # Domain exceptions (N-Tier firewall)
-│   ├── models.py                   # Pydantic v2 models: ShadowTask, ShadowContractor
-│   ├── security.py                 # JWT issuance + bcrypt password verification
-│   ├── shadow_store.py             # SQLite WAL repository for shadow_tasks.db
-│   ├── upload.py                   # File validation, path sanitization, size limits
+│   ├── models.py                   # Pydantic v2 data models
+│   ├── security.py                 # Security, hashing, and JWT management
+│   ├── shadow_store.py             # SQLite WAL repository layer
+│   ├── upload.py                   # File validation and security handling
 │   ├── api/                        # Versioned FastAPI REST Application
-│   │   ├── __init__.py
-│   │   ├── app.py                  # FastAPI application & shadow-serve CLI
-│   │   ├── dependencies.py         # FastAPI dependency injection providers
-│   │   ├── routes_auth.py          # /api/v1/auth endpoints
-│   │   └── routes_tasks.py         # /api/v1/tasks endpoints
-│   └── frontend/                   # React 19 + Tailwind CSS SPA
-│       ├── src/
-│       │   ├── App.tsx
-│       │   ├── pages/
-│       │   │   ├── DashboardPage.tsx
-│       │   │   ├── TaskDetailPage.tsx
-│       │   │   └── LoginPage.tsx
-│       │   └── components/
-│       │       └── ShadowModePortal.tsx
-│       └── dist/                   # Pre-built. Served automatically by shadow-serve.
-│
-├── tests/
-│   ├── conftest.py                 # Pytest fixtures and mock DB factories
-│   ├── test_adapter.py             # execute() < 50ms, state transitions
-│   ├── test_api.py                 # REST endpoint integration tests
-│   ├── test_edge_cases.py          # Edge case resilience test suite
-│   ├── test_security.py            # Password hashing & JWT token unit tests
-│   ├── test_shadow_store.py        # WAL concurrency tests with mock store.db
-│   └── mock_openopc_engine.py      # End-to-end OpenOPC DAG simulator
-│
-├── docs/
-│   └── openopc-shadow-adapter-seo-blueprint.md
-│
-├── .github/
-│   └── workflows/
-│       └── ci.yml                 # Matrix CI testing across Python 3.10-3.14
-│
-├── example_usage.py               # Full demo: park → submit → resume pipeline
-├── pyproject.toml                 # Package metadata + SEO keywords
-├── .env.example                   # Environment variable template
-├── CONTRIBUTING.md
-└── LICENSE
+│   │   ├── app.py                  # App factory and shadow-serve entry point
+│   │   ├── dependencies.py         # Dependency injection providers
+│   │   ├── routes_auth.py          # /api/v1/auth handlers
+│   │   └── routes_tasks.py         # /api/v1/tasks handlers
+│   └── frontend/                   # React 19 + Tailwind CSS Web Portal
+│       ├── src/                    # React source components
+│       └── dist/                   # Production build assets (pre-compiled)
+├── tests/                          # Automated Test Suite
+│   ├── test_adapter.py             # Lifecycle unit tests
+│   ├── test_api.py                 # REST API integration tests
+│   ├── test_edge_cases.py          # Edge case and boundary tests
+│   ├── test_security.py            # Security & JWT tests
+│   ├── test_shadow_store.py        # Store repository & WAL tests
+│   └── mock_openopc_engine.py      # Standalone engine simulator
+├── example_usage.py               # Demonstration script
+├── pyproject.toml                 # Package configuration & metadata
+├── .env.example                   # Environment template
+├── CONTRIBUTING.md                # Contribution guidelines
+└── LICENSE                        # MIT License
 ```
 
 ---
 
-## 📦 pyproject.toml — Copy-Paste Ready (SEO Optimized)
+## Development & Testing
 
-```toml
-[project]
-name = "openopc-shadow-adapter"
-version = "0.1.0"
-description = "Human-in-the-Loop (HITL) execution adapter for the OpenOPC multi-agent DAG runtime — safely park work items for human contractor review and resume DAG execution automatically."
-readme = "README.md"
-license = {text = "MIT"}
-requires-python = ">=3.10"
-authors = [
-    {name = "Ahmad Hassan", email = "your@email.com"}
-]
-
-keywords = [
-    "openopc",
-    "openopc-shadow-adapter",
-    "openopc-plugin",
-    "openopc-extension",
-    "human-in-the-loop",
-    "hitl",
-    "multi-agent",
-    "multi-agent-system",
-    "agentic-workflow",
-    "agentic-ai",
-    "dag-orchestration",
-    "llm-orchestration",
-    "ai-native",
-    "ai-company",
-    "phase-state-machine",
-    "external-agent-adapter",
-    "human-oversight",
-    "generative-ai",
-    "autonomous-ai",
-    "workflow-automation",
-]
-
-classifiers = [
-    "Development Status :: 4 - Beta",
-    "Intended Audience :: Developers",
-    "Intended Audience :: Science/Research",
-    "Topic :: Scientific/Engineering :: Artificial Intelligence",
-    "Topic :: Software Development :: Libraries :: Python Modules",
-    "Topic :: Internet :: WWW/HTTP :: WSGI :: Application",
-    "License :: OSI Approved :: MIT License",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
-    "Framework :: FastAPI",
-    "Environment :: Web Environment",
-    "Operating System :: OS Independent",
-    "Natural Language :: English",
-]
-
-dependencies = [
-    "fastapi>=0.110.0",
-    "uvicorn[standard]>=0.29.0",
-    "sqlalchemy>=2.0.0",
-    "python-jose[cryptography]>=3.3.0",
-    "passlib[bcrypt]>=1.7.4",
-    "python-multipart>=0.0.9",
-    "python-dotenv>=1.0.0",
-    "aiofiles>=23.0.0",
-]
-
-[project.urls]
-Homepage      = "https://github.com/AhmadHassan-BTed/OpenOPC-Shadow-Adapter"
-Repository    = "https://github.com/AhmadHassan-BTed/OpenOPC-Shadow-Adapter"
-Documentation = "https://github.com/AhmadHassan-BTed/OpenOPC-Shadow-Adapter#readme"
-"Bug Tracker" = "https://github.com/AhmadHassan-BTed/OpenOPC-Shadow-Adapter/issues"
-Changelog     = "https://github.com/AhmadHassan-BTed/OpenOPC-Shadow-Adapter/releases"
-
-[project.scripts]
-shadow-serve = "shadow_adapter.api.app:main"
-
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
-```
-
----
-
-## 🏷️ GitHub Repository Settings
-
-**About description** *(copy-paste into the ⚙️ gear icon → About field)*:
-```
-Zero-modification Human-in-the-Loop adapter for OpenOPC's agentic DAG runtime. Park work items for human contractor review. Resume DAG execution automatically. No timeouts.
-```
-
-**Topics** *(add all 15 to the Topics field)*:
-```
-openopc  human-in-the-loop  hitl  multi-agent  dag-orchestration
-agentic-workflow  llm-orchestration  ai-native  generative-ai
-fastapi  react  python  human-oversight  agentic-ai  external-agent-adapter
-```
-
-**Website** *(set to your PyPI page for cross-crawl)*:
-```
-https://pypi.org/project/openopc-shadow-adapter/
-```
-
----
-
-## 🤝 Contributing
-
-All contributions welcome: bug reports, features, documentation, and tests.
+Clone the repository and install development dependencies:
 
 ```bash
-# Clone and install in dev mode
-git clone https://github.com/AhmadHassan-BTed/OpenOPC-Shadow-Adapter
-cd OpenOPC-Shadow-Adapter
+git clone https://github.com/AhmadHassan-BTed/openopc-shadow-adapter.git
+cd openopc-shadow-adapter
 pip install -e ".[dev]"
-
-# Run the full test suite
-pytest tests/ -v --cov=shadow_adapter --cov-report=term-missing
-
-# Frontend dev server (hot reload at localhost:5173)
-cd shadow_adapter/frontend
-npm install && npm run dev
 ```
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for full guidelines, code standards, and branch conventions.
+Run the complete test suite:
+
+```bash
+pytest tests/ -v
+```
+
+Run the interactive OpenOPC engine simulation:
+
+```bash
+python tests/mock_openopc_engine.py
+```
+
+Run code formatting and linting verification:
+
+```bash
+ruff check shadow_adapter/ tests/
+ruff format shadow_adapter/ tests/
+```
 
 ---
 
-## 🔗 Ecosystem
+## Ecosystem Compatibility
 
 | Project | Relationship |
-|---------|-------------|
-| [HKUDS/OpenOPC](https://github.com/HKUDS/OpenOPC) | Host framework. `openopc-shadow-adapter` is a plugin for OpenOPC's multi-agent DAG runtime. |
-| [msitarzewski/agency-agents](https://github.com/msitarzewski/agency-agents) | OpenOPC talent templates — combinable with Shadow Adapter for human-backed talent roles. |
+|:---|:---|
+| [HKUDS/OpenOPC](https://github.com/HKUDS/OpenOPC) | Primary orchestration runtime. `openopc-shadow-adapter` extends `ExternalAgentAdapter`. |
+| [msitarzewski/agency-agents](https://github.com/msitarzewski/agency-agents) | OpenOPC role template repository — compatible with Shadow Mode human roles. |
 
 ---
 
 <div align="center">
 
----
+**openopc-shadow-adapter** | Production Human-in-the-Loop Layer for OpenOPC
 
-*`openopc-shadow-adapter` — because truly autonomous AI still needs a human in the loop.*
-*Just not one forced to sit and wait.*
+[GitHub Repository](https://github.com/AhmadHassan-BTed/openopc-shadow-adapter) | [PyPI Package](https://pypi.org/project/openopc-shadow-adapter/) | [Issue Tracker](https://github.com/AhmadHassan-BTed/openopc-shadow-adapter/issues)
 
-<br/>
-
-[⭐ Star this repo](https://github.com/AhmadHassan-BTed/OpenOPC-Shadow-Adapter) · 
-[📦 View on PyPI](https://pypi.org/project/openopc-shadow-adapter/) · 
-[🐛 Report a Bug](https://github.com/AhmadHassan-BTed/OpenOPC-Shadow-Adapter/issues) · 
-[💡 Request a Feature](https://github.com/AhmadHassan-BTed/OpenOPC-Shadow-Adapter/issues)
-
-[![Views](https://visitor-badge.laobi.icu/badge?page_id=openopc.shadow-adapter&style=for-the-badge&color=6366f1)](https://github.com/AhmadHassan-BTed/OpenOPC-Shadow-Adapter)
+[![Analytics](https://visitor-badge.laobi.icu/badge?page_id=openopc.shadow-adapter&style=for-the-badge&color=6366f1)](https://github.com/AhmadHassan-BTed/openopc-shadow-adapter)
 
 </div>
