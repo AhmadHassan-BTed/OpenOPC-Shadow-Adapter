@@ -1,0 +1,62 @@
+# ── Python ────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+*.egg
+dist/
+build/
+*.whl
+
+# ── Virtual Environment ──────────────────────────────────────────────────
+venv/
+.venv/
+env/
+ENV/
+
+# ── Environment & Secrets ────────────────────────────────────────────────
+.env
+.env.local
+.env.production
+*.pem
+*.key
+
+# ── Databases ─────────────────────────────────────────────────────────────
+*.sqlite3
+*.db
+shadow_tasks.db
+shadow_uploads/
+
+# ── IDE & Editor ──────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# ── OS ────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# ── Testing & Coverage ───────────────────────────────────────────────────
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# ── Node / Frontend Build ────────────────────────────────────────────────
+node_modules/
+shadow_adapter/frontend/dist/
+shadow_adapter/frontend/.vite/
+*.tsbuildinfo
+
+# ── Misc ──────────────────────────────────────────────────────────────────
+*.log
+*.bak
+*.tmp
