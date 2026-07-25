@@ -118,7 +118,21 @@ flowchart LR
 
 ```
 
-For complete technical sequence diagrams, state machine maps, and database schemas, see **[docs/architecture.md](https://www.google.com/search?q=docs/architecture.md)**.
+---
+
+## User Workflow & Execution Pipeline
+
+1. **Task Decomposing & Assignment**: When a user launches an OpenOPC session (e.g. `opc chat --mode company "Build feature X"`), OpenOPC's Manager AI creates work items and assigns them to configured role seats (e.g., `senior_developer`, `legal_counsel`).
+2. **Shadow Intercept (<50ms)**: Any role assigned `preferred_external_agent: shadow` is intercepted by `ShadowModeAdapter`. The adapter parses project goals, compiles a markdown task brief (`TaskBriefBuilder`), parks a record in `shadow_tasks.db`, and returns `AWAITING_HUMAN` to OpenOPC. Execution threads release immediately so parallel DAG tasks continue without timing out.
+3. **Task Claiming**:
+   - **Human Contractor**: Logs into the Contractor Portal at `http://localhost:8800`, claims the pending task, and opens the interactive `TaskWorkspace`.
+   - **Silicon BYOC Worker**: A remote GPU node running `shadow-worker --role senior_developer` polls the API, claims the task, and executes inference on its local model.
+4. **Deliverable Submission**: The worker reviews upstream subagent context, writes solution notes, and attaches deliverable files (up to 5 files / 50MB payload cap). Files are indexed into `CorporateArtifacts` with SHA-256 integrity hashes.
+5. **DAG Resumption**: `OpcResumeRepository` updates `delegation_work_items.phase` in OpenOPC's host `store.db`. OpenOPC wakes downstream DAG nodes, passing the uploaded artifacts forward.
+
+For complete documentation:
+- 📖 **[Step-by-Step Execution Flow Walkthrough](docs/execution_flow.md)**
+- 🛠️ **[Detailed Implementation & Setup Guide](docs/implementation_guide.md)**
 
 ---
 
