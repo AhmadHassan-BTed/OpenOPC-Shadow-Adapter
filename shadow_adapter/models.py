@@ -56,6 +56,9 @@ class ShadowTaskStatus(StrEnum):
     CANCELLED = "cancelled"
     """The task was cancelled (by admin or upstream OpenOPC cancellation)."""
 
+    ORPHANED = "orphaned"
+    """Upstream OpenOPC project or task row was deleted natively in host engine."""
+
 
 # ---------------------------------------------------------------------------
 # Core Domain Models

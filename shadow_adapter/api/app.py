@@ -51,11 +51,18 @@ def create_app(config: ShadowConfig | None = None) -> FastAPI:
         await store.close()
 
     app = FastAPI(
-        title="OpenOPC Shadow Adapter — Human Portal API",
+        title="OpenOPC Contractor & Silicon Worker Portal API",
         version="0.1.0",
-        description="REST API and Human Portal for shadow-mode OpenOPC task intercept, park, and resume.",
+        description="REST API and Contractor Portal for shadow-mode OpenOPC task intercept, park, and resume.",
         lifespan=lifespan,
     )
+
+    # Portal Coexistence Middleware — distinctly identifies responses from Port 8800
+    @app.middleware("http")
+    async def add_portal_identity_header(request: Request, call_next):
+        response = await call_next(request)
+        response.headers["X-Portal-Identity"] = "OpenOPC-Shadow-Worker-Portal"
+        return response
 
     # CORS configuration for development React server (Vite)
     app.add_middleware(

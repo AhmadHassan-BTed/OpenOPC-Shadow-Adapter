@@ -272,11 +272,16 @@ class ShadowWorker:
             return False
 
     async def run_forever(self) -> None:
-        """Run continuous worker polling loop on distributed node."""
+        """Run continuous worker polling loop on distributed node with exponential backoff."""
+        import random
+
         self._running = True
+        current_interval = float(self.poll_interval)
+        max_interval = float(max(15.0, self.poll_interval * 3))
+
         logger.info(
             f"[ShadowWorker] Starting continuous worker loop for role '{self.role or 'all'}' "
-            f"pointing to {self.server_url} (provider={self.provider}, model={self.model})"
+            f"pointing to {self.server_url} (provider={self.provider}, model={self.model}, base_poll={self.poll_interval}s)"
         )
 
         async with httpx.AsyncClient() as client:
@@ -285,13 +290,19 @@ class ShadowWorker:
             while self._running:
                 try:
                     processed = await self.process_one_task(client)
-                    if not processed:
-                        await asyncio.sleep(self.poll_interval)
+                    if processed:
+                        current_interval = float(self.poll_interval)
+                    else:
+                        jitter = random.uniform(0.1, 0.5)
+                        current_interval = min(max_interval, current_interval * 1.5 + jitter)
+                        await asyncio.sleep(current_interval)
                 except asyncio.CancelledError:
                     break
                 except Exception as e:
                     logger.error(f"[ShadowWorker] Error in worker loop: {e}")
-                    await asyncio.sleep(self.poll_interval)
+                    jitter = random.uniform(0.1, 0.5)
+                    current_interval = min(max_interval, current_interval * 1.5 + jitter)
+                    await asyncio.sleep(current_interval)
 
     def stop(self) -> None:
         """Stop worker polling loop."""

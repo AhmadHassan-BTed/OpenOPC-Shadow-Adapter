@@ -62,7 +62,7 @@ CREATE TABLE IF NOT EXISTS shadow_tasks (
     status                 TEXT NOT NULL DEFAULT 'pending'
                            CHECK(status IN (
                                'pending','claimed','submitted',
-                               'resumed','failed','cancelled'
+                               'resumed','failed','cancelled','orphaned'
                            )),
     assigned_contractor_id TEXT,
 
@@ -371,7 +371,27 @@ class ShadowStore:
         )
         await self._db.commit()
         await self._audit(task_id, None, "resumed", {})
-        return await self.get_task(task_id)  # type: ignore[return-value]
+        task = await self.get_task(task_id)
+        if not task:
+            raise TaskNotFoundError(task_id)
+        return task
+
+    async def mark_orphaned(self, task_id: str, reason: str = "") -> ShadowTask:
+        """Mark a shadow task as ORPHANED when native OpenOPC host task or project is deleted."""
+        now = _now_iso()
+        assert self._db is not None
+        await self._db.execute(
+            """UPDATE shadow_tasks
+               SET status = 'orphaned', updated_at = ?
+               WHERE id = ?""",
+            (now, task_id),
+        )
+        await self._db.commit()
+        await self._audit(task_id, None, "orphaned", {"reason": reason})
+        task = await self.get_task(task_id)
+        if not task:
+            raise TaskNotFoundError(task_id)
+        return task
 
     async def mark_failed(self, task_id: str, reason: str) -> ShadowTask:
         """Mark a task as failed with a reason."""

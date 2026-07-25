@@ -207,6 +207,20 @@ class ShadowModeAdapter(ExternalAgentAdapter):
                 metadata.get("work_item_id") or metadata.get("linked_work_item_id") or metadata.get("wi_id") or ""
             ).strip()
 
+        from shadow_adapter.brief_builder import TaskBriefBuilder
+
+        brief_md = str(metadata.get("brief_md") or "").strip()
+        if not brief_md:
+            brief_md = TaskBriefBuilder.build_markdown_brief(
+                task_id=task_id,
+                title=title,
+                description=description,
+                role=assigned_to,
+                priority=priority,
+                project_id=project_id,
+                metadata=metadata,
+            )
+
         return ShadowTask(
             opc_task_id=task_id,
             opc_session_id=session_id,
@@ -215,6 +229,7 @@ class ShadowModeAdapter(ExternalAgentAdapter):
             opc_metadata=metadata,
             title=title,
             description=description,
+            brief_md=brief_md,
             assigned_role=assigned_to,
             priority=priority,
             status=ShadowTaskStatus.PENDING,

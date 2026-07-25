@@ -62,6 +62,8 @@ class OpcResumeRepository:
 
             now_iso = datetime.now(timezone.utc).isoformat()
 
+            target_phase = str(shadow_task.opc_metadata.get("target_phase") or "approved")
+
             async with aiosqlite.connect(str(db_path)) as db:
                 await db.execute("PRAGMA journal_mode=WAL")
 
@@ -76,37 +78,40 @@ class OpcResumeRepository:
                     (result_json, shadow_task.opc_task_id),
                 )
 
-                if cursor.rowcount == 0:
+                task_found = cursor.rowcount > 0
+                if not task_found:
                     logger.warning(
-                        f"[OpcResumeRepository] No OpenOPC task row matched id '{shadow_task.opc_task_id}' in store.db"
+                        f"[OpcResumeRepository] No OpenOPC task row matched id '{shadow_task.opc_task_id}' in store.db (Orphaned task)"
                     )
 
-                # Step 4: If linked to a work item, advance phase
+                # Step 4: If linked to a work item, advance phase to OpenOPC expected phase
                 work_item_updated = False
                 if shadow_task.opc_work_item_id:
                     wi_cursor = await db.execute(
                         """UPDATE delegation_work_items
-                           SET phase = 'approved',
+                           SET phase = ?,
                                updated_at = ?
                            WHERE work_item_id = ?""",
-                        (now_iso, shadow_task.opc_work_item_id),
+                        (target_phase, now_iso, shadow_task.opc_work_item_id),
                     )
                     work_item_updated = wi_cursor.rowcount > 0
 
                 await db.commit()
 
             logger.info(
-                f"[OpcResumeRepository] Successfully resumed OpenOPC task {shadow_task.opc_task_id} "
-                f"(work_item={shadow_task.opc_work_item_id}, wi_updated={work_item_updated})"
+                f"[OpcResumeRepository] Resumed OpenOPC task {shadow_task.opc_task_id} "
+                f"(matched={task_found}, work_item={shadow_task.opc_work_item_id}, phase={target_phase})"
             )
 
             return TaskResumeResult(
                 success=True,
                 shadow_task_id=shadow_task.id,
                 opc_task_id=shadow_task.opc_task_id,
-                opc_task_status="done",
-                opc_work_item_phase="approved" if work_item_updated else "",
-                message="OpenOPC task and work item updated to completed state.",
+                opc_task_status="done" if task_found else "orphaned",
+                opc_work_item_phase=target_phase if work_item_updated else "",
+                message="OpenOPC task and work item updated to completed state."
+                if task_found
+                else "Task saved, host row orphaned.",
             )
 
         except Exception as exc:
