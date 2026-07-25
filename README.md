@@ -18,7 +18,7 @@
 # OpenOPC-Shadow-Adapter
 ### Non-Blocking Human-in-the-Loop (HITL) & BYOC Infrastructure for OpenOPC
 
-**The Carbon-Silicon Continuum: Real Humans & Remote PCs as First-Class OpenOPC Employees**
+**AI Agent Employees For Your Compan -- The Carbon-Silicon Continuum: Real Humans & Remote PCs as First-Class OpenOPC Employees**
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://pypi.org/project/openopc-shadow-adapter/)
 [![PyPI Package](https://img.shields.io/badge/pypi-v0.1.0--ready-0c111b?style=for-the-badge&logo=pypi&logoColor=white)](https://pypi.org/project/openopc-shadow-adapter/)
