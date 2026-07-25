@@ -174,13 +174,9 @@ All detailed technical specifications are decoupled from this overview:
 ## Development & Testing
 
 ```bash
-# Clone & install in editable mode
-git clone https://github.com/AhmadHassan-BTed/openopc-shadow-adapter.git
-cd openopc-shadow-adapter
-pip install -e ".[dev]"
-
-# Run full test suite (32 tests)
-pytest tests/ -v
+# Run full anti-fragility & host integration test suite (55 tests)
+# Enforces Concurrency, Property-Based Fuzzing, Black Hole Exception Trapping, and OpenOPC Host Mutation Survival
+pytest tests/ -v --cov=shadow_adapter --cov-report=term-missing
 
 # Run engine simulator demo
 python tests/mock_openopc_engine.py

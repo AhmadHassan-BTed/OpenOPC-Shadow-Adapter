@@ -10,7 +10,24 @@ This document defines the deep architectural specifications, data flows, state m
 - **Base Class:** `opc.layer3_agent.adapters.base.ExternalAgentAdapter`
 - **Registry Injection:** `ADAPTER_CLASSES["shadow"] = ShadowModeAdapter`
 - **Non-Blocking Intercept:** `execute()` MUST save task state to `shadow_tasks.db` and return `TaskResult(status=AWAITING_HUMAN)` in **< 50ms**. It MUST NOT block the calling engine execution thread.
-- **WAL-Mode Resume Pipeline:** `resume_task()` MUST update OpenOPC's `store.db` setting task phase to `Phase.APPROVED` using SQLite Write-Ahead Logging (WAL mode) for safe concurrent database access.
+- **WAL-Mode Resume Pipeline:** `resume_task()` delegates to `OpcResumeRepository` which updates OpenOPC's `store.db` setting task phase to `Phase.APPROVED` using SQLite Write-Ahead Logging (WAL mode) for safe concurrent database access.
+
+### N-Tier Production Line Architecture
+The codebase enforces strict tier boundaries across 3 decoupled layers:
+
+1. **Controllers Tier (`shadow_adapter/api/routes_*.py`)**
+   - Pure HTTP I/O, OpenAPI request parsing, file stream conversion to DTOs, and response formatting.
+   - Zero business logic, zero SQL.
+
+2. **Services Tier (`shadow_adapter/services/`)**
+   - **`HandoffService` (The Temporal Bridge):** Orchestrates park, claim, unclaim, submit, and resume pipelines with 100% test coverage.
+   - **`AuthService` (Carbon Employee Identity):** Manages login, contractor registration (with first-user admin bootstrapping), and profile management.
+   - Boundary DTOs (`UploadLimits`, `JwtConfig`, `UploadFileDTO`) prevent God Object config coupling.
+   - Pure Domain Exceptions (`TaskNotFoundError`, `TaskPermissionError`, `TaskNotClaimedError`, `InvalidCredentialsError`).
+
+3. **Repository Tier (`shadow_adapter/repositories/` & `shadow_store.py`)**
+   - **`OpcResumeRepository`:** Direct WAL writer to OpenOPC's `store.db` with 100% test coverage and Exception Black Hole protection.
+   - **`ShadowStore`:** Thread-safe SQLite WAL repository for `shadow_tasks.db`.
 
 ---
 
@@ -35,6 +52,8 @@ sequenceDiagram
     participant Adapter as ShadowModeAdapter
     participant Store as ShadowStore (shadow_tasks.db)
     participant API as FastAPI Router (/api/v1)
+    participant Service as HandoffService / AuthService
+    participant OPCRepo as OpcResumeRepository
     participant Portal as React 19 Human Portal
     participant Contractor as Human Contractor
 
@@ -45,22 +64,26 @@ sequenceDiagram
     Note over Engine: Execution lock released. Independent DAG tasks execute in parallel.
 
     Contractor->>Portal: Login via POST /api/v1/auth/login
-    Portal->>API: GET /api/v1/tasks with status pending
-    API->>Store: Query pending task records
-    Store-->>API: List of ShadowTask models
+    Portal->>API: HTTP Login Request
+    API->>Service: AuthService.login(credentials)
+    Service->>Store: Validate credentials in contractors table
+    Service-->>API: Return JWT access token
     API-->>Portal: Render Task Queue
 
     Contractor->>Portal: Claim Task via POST /api/v1/tasks/{id}/claim
-    Portal->>API: Invoke claim task logic
-    API->>Store: Update task status to claimed
+    Portal->>API: HTTP Claim Request
+    API->>Service: HandoffService.claim_task(task_id, contractor_id)
+    Service->>Store: Atomic UPDATE status = claimed WHERE status = pending
     Store-->>Portal: Return 200 OK
 
     Contractor->>Portal: Submit Deliverable via POST /api/v1/tasks/{id}/submit
     Portal->>API: Multipart upload containing notes and files
-    API->>API: Validate file count, extensions, and size limits
-    API->>Store: Update task status to submitted
-    API->>Adapter: Trigger resume task pipeline
-    Adapter->>Engine: Direct WAL write to store.db setting Phase to APPROVED
+    API->>API: Convert UploadFile -> UploadFileDTO
+    API->>Service: HandoffService.submit_and_resume(...)
+    Service->>Service: Validate file count & size limits (UploadLimits)
+    Service->>Store: Update task status to submitted
+    Service->>OPCRepo: OpcResumeRepository.resume(shadow_task, opc_store_path)
+    OPCRepo->>Engine: Direct WAL write to store.db setting Phase to APPROVED
 
     Note over Engine: Native phase hooks trigger. Downstream DAG nodes resume execution automatically.
 ```
@@ -110,17 +133,27 @@ flowchart TD
         OPCStore[("OpenOPC Store DB\n(store.db - SQLite WAL Mode)")]
     end
 
-    subgraph ShadowPackage ["openopc-shadow-adapter Package"]
-        AdapterImpl["ShadowModeAdapter (adapter.py)\nSubclasses ExternalAgentAdapter\n• execute method -> TaskResult with AWAITING_HUMAN status\n• resume_task method -> Direct WAL Write"]
+    subgraph ShadowPackage ["openopc-shadow-adapter Package (N-Tier Architecture)"]
+        AdapterImpl["ShadowModeAdapter (adapter.py)\nSubclasses ExternalAgentAdapter\n• execute method -> TaskResult with AWAITING_HUMAN status\n• Signature Mutation Survival (*args, **kwargs)"]
         
-        subgraph APILayer ["FastAPI REST Application (shadow_adapter/api)"]
+        subgraph APILayer ["HTTP Controllers Tier (shadow_adapter/api)"]
             AppFactory["App Factory & Server (app.py)\nCLI Entry Point: shadow-serve"]
-            AuthRoutes["Auth Router (routes_auth.py)\n/api/v1/auth/login\n/api/v1/auth/register"]
-            TaskRoutes["Tasks Router (routes_tasks.py)\n/api/v1/tasks\n/api/v1/tasks/{id}/claim\n/api/v1/tasks/{id}/submit"]
-            UploadSecurity["Security & Upload Engine (upload.py)\nFile limit: 5 files, 10MB each, 50MB total\nExtension allowlist & path sanitization"]
+            AuthRoutes["Auth Router (routes_auth.py)\nDelegates to AuthService"]
+            TaskRoutes["Tasks Router (routes_tasks.py)\nDelegates to HandoffService"]
+            DILayer["Dependency Injection (dependencies.py)\nInjects Services, Repos, DTOs"]
         end
 
-        StoreRepo["ShadowStore Repository (shadow_store.py)\nThread-safe SQLite WAL Access"]
+        subgraph ServiceLayer ["Services Tier (shadow_adapter/services)"]
+            HandoffSvc["HandoffService (handoff_service.py)\nTemporal Bridge Engine\n• 100% Test Coverage"]
+            AuthSvc["AuthService (auth_service.py)\nIdentity & Bootstrapping\n• 97% Test Coverage"]
+            DTOs["Boundary DTOs (models.py)\nUploadLimits | JwtConfig | UploadFileDTO"]
+        end
+
+        subgraph RepoLayer ["Repositories Tier (shadow_adapter/repositories)"]
+            OpcRepo["OpcResumeRepository (opc_resume_repo.py)\nOpenOPC WAL Writer • 100% Coverage"]
+            StoreRepo["ShadowStore Repository (shadow_store.py)\nAtomic UPDATE WHERE checks"]
+        end
+
         ShadowDB[("Shadow Database\n(shadow_tasks.db)\n• shadow_tasks\n• audit_log\n• contractors")]
         
         FrontendSPA["React 19 SPA (shadow_adapter/frontend/dist)\n• JWT Authentication\n• Task Queue Dashboard\n• Deliverable Upload Dropzone\n• Audit Timeline Viewer"]
@@ -131,17 +164,22 @@ flowchart TD
     ConfigYaml -->|Configures shadow preferred agent| Registry
     Registry -->|Instantiates| AdapterImpl
     EngineCore -->|Invokes execute method| AdapterImpl
-    AdapterImpl -->|1. Park task| StoreRepo
+    AdapterImpl -->|1. Park task| HandoffSvc
+    HandoffSvc -->|Save pending task| StoreRepo
     StoreRepo --> ShadowDB
-    AdapterImpl -->|2. Write Phase.APPROVED| OPCStore
-    OPCStore -->|Native Phase Hooks| EngineCore
 
     ClientBrowser <-->|HTTP / HTTPS| FrontendSPA
     FrontendSPA <-->|REST API + JWT| AppFactory
-    AppFactory --> AuthRoutes
-    AppFactory --> TaskRoutes
-    TaskRoutes --> UploadSecurity
-    TaskRoutes --> StoreRepo
+    AppFactory --> DILayer
+    DILayer --> AuthRoutes
+    DILayer --> TaskRoutes
+    AuthRoutes --> AuthSvc
+    TaskRoutes --> HandoffSvc
+    AuthSvc --> StoreRepo
+    HandoffSvc --> StoreRepo
+    HandoffSvc --> OpcRepo
+    OpcRepo -->|Write Phase.APPROVED| OPCStore
+    OPCStore -->|Native Phase Hooks| EngineCore
     StoreRepo <--> ShadowDB
 ```
 
