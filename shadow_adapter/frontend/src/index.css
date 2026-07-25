@@ -2,27 +2,118 @@
 @tailwind components;
 @tailwind utilities;
 
-@layer base {
-  body {
-    @apply bg-opc-bg text-opc-text font-sans antialiased;
-  }
+:root {
+  --opc-bg: #0c111b;
+  --opc-elevated: #141b2b;
+  --opc-secondary: #1a2332;
+  --opc-surface: rgba(20, 27, 43, 0.75);
+  --opc-text: #e2e8f0;
+  --opc-text-secondary: #8494a7;
+  --opc-text-dim: #64748b;
+  --opc-accent: #14b8a6;
+  --opc-accent-hover: #0d9488;
+  --opc-accent-soft: rgba(20, 184, 166, 0.15);
+  --opc-border: rgba(148, 163, 184, 0.12);
+  --opc-border-hover: rgba(148, 163, 184, 0.28);
 }
 
-/* Custom scrollbars matching OpenOPC office_ui */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+.light-theme {
+  --opc-bg: #f8fafc;
+  --opc-elevated: #ffffff;
+  --opc-secondary: #f1f5f9;
+  --opc-surface: rgba(255, 255, 255, 0.9);
+  --opc-text: #0f172a;
+  --opc-text-secondary: #475569;
+  --opc-text-dim: #94a3b8;
+  --opc-accent: #0d9488;
+  --opc-accent-hover: #0f766e;
+  --opc-accent-soft: rgba(13, 148, 136, 0.12);
+  --opc-border: rgba(203, 213, 225, 0.6);
+  --opc-border-hover: rgba(148, 163, 184, 0.8);
 }
 
-::-webkit-scrollbar-track {
-  background: rgba(12, 17, 27, 0.5);
+body {
+  margin: 0;
+  background-color: var(--opc-bg);
+  color: var(--opc-text);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
-::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.2);
-  border-radius: 9999px;
+/* Custom Markdown Content Styles */
+.markdown-body {
+  color: var(--opc-text);
+  line-height: 1.6;
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(148, 163, 184, 0.4);
+.markdown-body h1, .markdown-body h2, .markdown-body h3, .markdown-body h4 {
+  color: var(--opc-text);
+  font-weight: 600;
+  margin-top: 1.25em;
+  margin-bottom: 0.5em;
+  letter-spacing: -0.01em;
+}
+
+.markdown-body h1 { font-size: 1.5rem; border-bottom: 1px solid var(--opc-border); padding-bottom: 0.3em; }
+.markdown-body h2 { font-size: 1.25rem; }
+.markdown-body h3 { font-size: 1.1rem; }
+
+.markdown-body p { margin-bottom: 1em; }
+
+.markdown-body code {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  background: var(--opc-secondary);
+  border: 1px solid var(--opc-border);
+  padding: 0.15em 0.4em;
+  border-radius: 4px;
+  font-size: 0.875em;
+}
+
+.markdown-body pre {
+  background: #090d16;
+  border: 1px solid var(--opc-border);
+  border-radius: 8px;
+  padding: 1rem;
+  overflow-x: auto;
+  margin-bottom: 1.25em;
+}
+
+.markdown-body pre code {
+  background: transparent;
+  border: none;
+  padding: 0;
+}
+
+.markdown-body blockquote {
+  border-left: 4px solid var(--opc-accent);
+  background: var(--opc-accent-soft);
+  padding: 0.5rem 1rem;
+  margin: 1em 0;
+  border-radius: 0 6px 6px 0;
+}
+
+.markdown-body table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 1.25em;
+}
+
+.markdown-body th, .markdown-body td {
+  border: 1px solid var(--opc-border);
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+}
+
+.markdown-body th {
+  background: var(--opc-secondary);
+  font-weight: 600;
+}
+
+.markdown-body ul, .markdown-body ol {
+  padding-left: 1.5rem;
+  margin-bottom: 1em;
+}
+
+.markdown-body li {
+  margin-bottom: 0.3em;
 }
