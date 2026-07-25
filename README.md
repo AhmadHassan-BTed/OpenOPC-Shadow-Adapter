@@ -137,9 +137,36 @@ uv pip install openopc-shadow-adapter
 </details>
 
 <details open>
-<summary><strong>2. Register the Adapter</strong></summary>
+<summary><strong>2. Environment Configuration</strong></summary>
 
-Add the programmatic registration to your application entry point before initializing OpenOPC's engine:
+Copy the provided [`.env.example`](file://.env.example) template to `.env` and set your JWT secret and database paths:
+
+```bash
+cp .env.example .env
+```
+
+```ini
+SHADOW_JWT_SECRET=a-very-secure-random-secret-key-32-chars-min
+SHADOW_DB_PATH=./shadow_tasks.db
+SHADOW_OPC_STORE_PATH=.opc/projects/default/store.db
+SHADOW_UPLOAD_DIR=./shadow_uploads
+```
+</details>
+
+<details open>
+<summary><strong>3. Run the Drop-In Integration Demo</strong></summary>
+
+Test the full non-blocking intercept, park, contractor submission, and DAG resume pipeline locally in 1 second:
+
+```bash
+python example_usage.py
+```
+</details>
+
+<details open>
+<summary><strong>4. Register the Adapter & Start Server</strong></summary>
+
+Add programmatic registration to your application entry point before initializing OpenOPC's engine:
 
 ```python
 from opc.layer3_agent.adapters.registry import ADAPTER_CLASSES
@@ -149,37 +176,13 @@ from shadow_adapter.adapter import ShadowModeAdapter
 ADAPTER_CLASSES["shadow"] = ShadowModeAdapter
 ```
 
-Add `shadow` to your `.opc/config/agent_config.yaml`:
-
-```yaml
-external_agents:
-  preferred_order:
-    - claude_code
-    - codex
-    - cursor
-    - opencode
-    - shadow
-
-  shadow:
-    enabled: true
-    command: ""
-    run_mode: batch
-    idle_timeout_seconds: 0
-    approval_mode: full-auto
-```
-</details>
-
-<details open>
-<summary><strong>3. Start the Server</strong></summary>
-
-Launch the FastAPI backend and static React Human Portal:
+Launch the FastAPI backend and React Human Portal server:
 
 ```bash
-export SHADOW_JWT_SECRET="a-very-secure-random-secret-key"
 shadow-serve --port 8800
 ```
 
-Open `http://localhost:8800` to access the Human Portal interface.
+Open `http://localhost:8800` to access the React Human Portal interface.
 </details>
 
 <details>
