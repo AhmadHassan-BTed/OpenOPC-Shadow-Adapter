@@ -6,7 +6,7 @@ This guide provides step-by-step setup, configuration, and architectural walkthr
 
 ## 1. Architecture Overview
 
-`openopc-shadow-adapter` is a decoupled, zero-core-modification extension for OpenOPC.
+`openopc-shadow-adapter` operates as a non-invasive **symbiotic architecture extension** for OpenOPC. It is completely independent and requires zero code modifications to the core OpenOPC repository.
 
 ```mermaid
 flowchart TD

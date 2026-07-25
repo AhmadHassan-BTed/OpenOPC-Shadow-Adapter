@@ -47,6 +47,7 @@
 2. **Contractor & Silicon Worker Portal**: Provides a dedicated, secure React 19 UI and REST API (`shadow-serve`) for human reviewers and remote workers (`shadow-worker`).
 3. **Consolidated Corporate Brain**: Automatically packages ancestor deliverables, structured markdown briefs (`brief_md`), and uploaded file artifacts (`CorporateArtifacts`) for downstream context inheritance.
 4. **Canonical State Subordination**: Resumes OpenOPC's native `store.db` state machine (`delegation_work_items.phase`) instantly when deliverables are submitted.
+5. **Symbiotic Architecture**: Functions as an independent, non-invasive extension that plugs into OpenOPC's external agent registry (`ADAPTER_CLASSES["shadow"]`) with zero core repository modifications.
 
 ---
 
