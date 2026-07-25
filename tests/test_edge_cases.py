@@ -61,7 +61,7 @@ async def test_unclaim_unowned_task_fails(shadow_store: ShadowStore) -> None:
     await shadow_store.create_task(task)
     await shadow_store.claim_task(task.id, "contractor_a")
 
-    with pytest.raises(ValueError, match="is not claimed by contractor contractor_b"):
+    with pytest.raises(ValueError, match="is claimed by another contractor"):
         await shadow_store.unclaim_task(task.id, "contractor_b")
 
 

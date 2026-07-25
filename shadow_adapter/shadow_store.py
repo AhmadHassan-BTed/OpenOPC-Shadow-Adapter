@@ -26,6 +26,11 @@ from typing import Any
 import aiosqlite
 from loguru import logger
 
+from shadow_adapter.exceptions import (
+    TaskNotClaimedError,
+    TaskNotFoundError,
+    TaskPermissionError,
+)
 from shadow_adapter.models import (
     ShadowAuditEntry,
     ShadowContractor,
@@ -284,11 +289,11 @@ class ShadowStore:
         """Release a claimed task back to pending."""
         task = await self.get_task(task_id)
         if not task:
-            raise ValueError(f"Task not found: {task_id}")
+            raise TaskNotFoundError(task_id)
         if task.status != ShadowTaskStatus.CLAIMED:
-            raise ValueError(f"Cannot unclaim task {task_id}: not in 'claimed' status")
+            raise TaskNotClaimedError(task_id, task.status.value)
         if task.assigned_contractor_id != contractor_id:
-            raise ValueError(f"Task {task_id} is not claimed by contractor {contractor_id}")
+            raise TaskPermissionError(task_id, task.assigned_contractor_id or "")
         now = _now_iso()
         assert self._db is not None
         await self._db.execute(
@@ -311,11 +316,11 @@ class ShadowStore:
         """Record a deliverable submission for a claimed task."""
         task = await self.get_task(task_id)
         if not task:
-            raise ValueError(f"Task not found: {task_id}")
+            raise TaskNotFoundError(task_id)
         if task.status != ShadowTaskStatus.CLAIMED:
-            raise ValueError(f"Cannot submit task {task_id}: not in 'claimed' status")
+            raise TaskNotClaimedError(task_id, task.status.value)
         if task.assigned_contractor_id != contractor_id:
-            raise ValueError(f"Task {task_id} is not claimed by contractor {contractor_id}")
+            raise TaskPermissionError(task_id, task.assigned_contractor_id or "")
         now = _now_iso()
         assert self._db is not None
         await self._db.execute(

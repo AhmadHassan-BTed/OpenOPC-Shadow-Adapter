@@ -195,10 +195,7 @@ class ShadowModeAdapter(ExternalAgentAdapter):
         work_item_id = str(getattr(task, "linked_work_item_id", "") or "").strip()
         if not work_item_id:
             work_item_id = str(
-                metadata.get("work_item_id")
-                or metadata.get("linked_work_item_id")
-                or metadata.get("wi_id")
-                or ""
+                metadata.get("work_item_id") or metadata.get("linked_work_item_id") or metadata.get("wi_id") or ""
             ).strip()
 
         return ShadowTask(
@@ -225,9 +222,7 @@ class ShadowModeAdapter(ExternalAgentAdapter):
                 "shadow_task_id": shadow_task.id,
                 "deliverable_files": shadow_task.deliverable_files,
                 "contractor_id": shadow_task.assigned_contractor_id,
-                "submitted_at": (
-                    shadow_task.submitted_at.isoformat() if shadow_task.submitted_at else ""
-                ),
+                "submitted_at": (shadow_task.submitted_at.isoformat() if shadow_task.submitted_at else ""),
                 "source": "human_shadow_adapter",
             },
             cost=0.0,
@@ -259,16 +254,18 @@ class ShadowModeAdapter(ExternalAgentAdapter):
             import aiosqlite
 
             task_result = cls.shadow_submission_to_task_result(shadow_task)
-            result_json = json.dumps({
-                "status": "done",
-                "content": task_result.content,
-                "summary": task_result.content,
-                "artifacts": task_result.artifacts,
-                "submitted_by_human": True,
-                "contractor_username": shadow_task.assigned_contractor_id or "human_contractor",
-                "cost": 0.0,
-                "token_usage": {},
-            })
+            result_json = json.dumps(
+                {
+                    "status": "done",
+                    "content": task_result.content,
+                    "summary": task_result.content,
+                    "artifacts": task_result.artifacts,
+                    "submitted_by_human": True,
+                    "contractor_username": shadow_task.assigned_contractor_id or "human_contractor",
+                    "cost": 0.0,
+                    "token_usage": {},
+                }
+            )
 
             now_iso = datetime.now(timezone.utc).isoformat()
 
@@ -318,9 +315,7 @@ class ShadowModeAdapter(ExternalAgentAdapter):
             )
 
         except Exception as exc:
-            logger.exception(
-                f"[ShadowModeAdapter] Error resuming task {shadow_task.opc_task_id}: {exc}"
-            )
+            logger.exception(f"[ShadowModeAdapter] Error resuming task {shadow_task.opc_task_id}: {exc}")
             return TaskResumeResult(
                 success=False,
                 shadow_task_id=shadow_task.id,

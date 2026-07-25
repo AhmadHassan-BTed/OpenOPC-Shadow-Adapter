@@ -14,10 +14,19 @@ Architectural note:
 
 from __future__ import annotations
 
+import sys
 import uuid
 from datetime import datetime, timezone
-from enum import StrEnum
+from enum import Enum
 from typing import Any
+
+if sys.version_info >= (3, 11):
+    from enum import StrEnum
+else:
+
+    class StrEnum(str, Enum):
+        pass
+
 
 from pydantic import BaseModel, ConfigDict, Field
 
