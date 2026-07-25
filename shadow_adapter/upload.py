@@ -38,13 +38,13 @@ class SecureUploadHandler:
                  '..\\..\\windows\\system32\\cmd.exe' -> 'cmd.exe'
                  'my report (final!).pdf' -> 'my_report_final_.pdf'
         """
-        # Normalize Windows backslashes to forward slashes before taking basename
-        normalized = filename.replace("\\", "/")
+        # Strip leading/trailing whitespace and normalize backslashes
+        normalized = filename.strip().replace("\\", "/")
         base = os.path.basename(normalized)
         # Replace non-alphanumeric (except . - _) with underscore
         cleaned = re.sub(r"[^\w\.\-]", "_", base)
-        # Prevent hidden files / relative traversal dots at start
-        cleaned = cleaned.lstrip(".")
+        # Prevent hidden files / relative traversal dots at start and underscores
+        cleaned = cleaned.lstrip("._")
         if not cleaned:
             cleaned = "unnamed_file"
         return cleaned
