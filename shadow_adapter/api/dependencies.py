@@ -92,7 +92,7 @@ async def get_upload_handler(
     handler: SecureUploadHandler | None = getattr(request.app.state, "upload_handler", None)
     if handler is None:
         config = await get_config(request)
-        handler = SecureUploadHandler(limits, upload_dir=config.upload_path)
+        handler = SecureUploadHandler(limits, config.upload_path)
     return handler
 
 

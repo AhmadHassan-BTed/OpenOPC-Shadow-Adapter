@@ -49,7 +49,7 @@ def handoff_service(
     tmp_path,
     upload_limits: UploadLimits,
 ) -> HandoffService:
-    upload_handler = SecureUploadHandler(upload_limits, upload_dir=tmp_path / "uploads")
+    upload_handler = SecureUploadHandler(upload_limits, tmp_path / "uploads")
     opc_repo = OpcResumeRepository()
     return HandoffService(
         shadow_store=shadow_store,
