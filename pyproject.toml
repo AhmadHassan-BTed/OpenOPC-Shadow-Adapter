@@ -79,6 +79,7 @@ all = [
 
 [project.scripts]
 shadow-serve = "shadow_adapter.api.app:main"
+shadow-worker = "shadow_adapter.worker:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["shadow_adapter"]

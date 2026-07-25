@@ -146,6 +146,74 @@ shadow-serve --port 8800
 
 ---
 
+## Distributed Silicon Workforce (Bring Your Own Compute - BYOC)
+
+The **`shadow-worker`** daemon allows remote PCs, GPU workstations, and dedicated cloud nodes to act as specialized silicon employees. Each remote node runs its assigned role on its own local model or API key without modifying the central OpenOPC engine.
+
+### Launch Remote Compute Nodes (3-PC Distributed Example)
+
+#### 1. Remote GPU Workstation (Role: Senior Developer -> Local Ollama)
+```bash
+export OLLAMA_HOST="http://localhost:11434"
+shadow-worker \
+  --server-url "http://192.168.1.100:8800" \
+  --username "dev_node_1" \
+  --password "secure_pass_1" \
+  --role "senior_developer" \
+  --provider "ollama" \
+  --model "llama3.3:70b"
+```
+
+#### 2. Remote Enterprise Server (Role: Legal Counsel -> Enterprise Claude API)
+```bash
+export LOCAL_ANTHROPIC_KEY="sk-ant-api03-enterprise-key..."
+shadow-worker \
+  --server-url "http://192.168.1.100:8800" \
+  --username "legal_node_2" \
+  --password "secure_pass_2" \
+  --role "legal_counsel" \
+  --provider "anthropic" \
+  --model "claude-3-5-sonnet-20241022"
+```
+
+#### 3. Remote Tester Machine (Role: QA Tester -> OpenAI GPT-4o)
+```bash
+export LOCAL_OPENAI_API_KEY="sk-proj-openai-key..."
+shadow-worker \
+  --server-url "http://192.168.1.100:8800" \
+  --username "qa_node_3" \
+  --password "secure_pass_3" \
+  --role "qa_tester" \
+  --provider "openai" \
+  --model "gpt-4o"
+```
+
+### Programmatic Python SDK Usage
+
+You can also embed `ShadowWorker` into custom Python pipelines on remote nodes:
+
+```python
+import asyncio
+from shadow_adapter import ShadowWorker
+
+# Custom task handler executing local agent pipeline
+async def my_local_agent(task: dict) -> str:
+    # Query your local GPU, private database, or custom agent model
+    return f"Processed task '{task['title']}' on local node."
+
+worker = ShadowWorker(
+    server_url="http://192.168.1.100:8800",
+    username="custom_node_01",
+    password="password123",
+    role="legal_counsel",
+    custom_handler=my_local_agent,
+)
+
+asyncio.run(worker.run_forever())
+```
+
+---
+
 ## Architecture Deep-Dive
 
 All detailed technical specifications are decoupled from this overview:
