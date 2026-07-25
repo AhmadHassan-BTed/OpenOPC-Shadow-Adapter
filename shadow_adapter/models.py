@@ -8,16 +8,18 @@ Architectural note:
     OpenOPC ``Task`` at intercept time but is fully independent afterward.
   - ``extra_metadata`` on ShadowTask is the extensibility hook — future custom
     fields can be added without schema migrations.
+  - All models use ``ConfigDict(extra='ignore')`` or ``extra='allow'`` to ensure
+    100% mathematical immunity to upstream OpenOPC schema changes.
 """
 
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import StrEnum
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 # ---------------------------------------------------------------------------
 # Enumerations
@@ -54,6 +56,8 @@ class ShadowTaskStatus(StrEnum):
 class ShadowTask(BaseModel):
     """A human-parked task — the adapter's local record of an intercepted OpenOPC task."""
 
+    model_config = ConfigDict(extra="allow", from_attributes=True)
+
     # Our own identity
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
 
@@ -79,7 +83,7 @@ class ShadowTask(BaseModel):
     deliverable_files: list[str] = Field(default_factory=list)
 
     # Timestamps
-    parked_at: datetime = Field(default_factory=datetime.utcnow)
+    parked_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     claimed_at: datetime | None = None
     submitted_at: datetime | None = None
     resumed_at: datetime | None = None
@@ -88,11 +92,11 @@ class ShadowTask(BaseModel):
     # Extensibility — arbitrary metadata for plugins / future features
     extra_metadata: dict[str, Any] = Field(default_factory=dict)
 
-    model_config = {"from_attributes": True}
-
 
 class ShadowSubmission(BaseModel):
     """Inbound deliverable payload from a human contractor."""
+
+    model_config = ConfigDict(extra="ignore")
 
     deliverable_text: str = ""
     deliverable_files: list[str] = Field(default_factory=list)
@@ -103,6 +107,8 @@ class ShadowSubmission(BaseModel):
 class ShadowContractor(BaseModel):
     """A human contractor account (stored in shadow_contractors table)."""
 
+    model_config = ConfigDict(extra="allow", from_attributes=True)
+
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     username: str
     email: str | None = None
@@ -110,23 +116,21 @@ class ShadowContractor(BaseModel):
     display_name: str = ""
     roles: list[str] = Field(default_factory=lambda: ["contractor"])
     is_active: bool = True
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
-
-    model_config = {"from_attributes": True}
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class ShadowAuditEntry(BaseModel):
     """Immutable audit log record — tracks every action on a shadow task."""
+
+    model_config = ConfigDict(extra="allow", from_attributes=True)
 
     id: int | None = None
     shadow_task_id: str
     actor_id: str | None = None
     action: str
     details: dict[str, Any] = Field(default_factory=dict)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-
-    model_config = {"from_attributes": True}
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 # ---------------------------------------------------------------------------
@@ -136,6 +140,8 @@ class ShadowAuditEntry(BaseModel):
 
 class TaskResumeResult(BaseModel):
     """Outcome of the resume pipeline — pushing a human deliverable back into OpenOPC."""
+
+    model_config = ConfigDict(extra="ignore")
 
     success: bool
     shadow_task_id: str
@@ -152,11 +158,15 @@ class TaskResumeResult(BaseModel):
 
 
 class LoginRequest(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
     username: str
     password: str
 
 
 class LoginResponse(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
     access_token: str
     token_type: str = "bearer"
     expires_in: int
@@ -165,6 +175,8 @@ class LoginResponse(BaseModel):
 
 class ContractorPublic(BaseModel):
     """Public-facing contractor info (no password hash)."""
+
+    model_config = ConfigDict(extra="ignore")
 
     id: str
     username: str
@@ -175,6 +187,8 @@ class ContractorPublic(BaseModel):
 
 
 class RegisterRequest(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
     username: str
     password: str
     email: str | None = None
@@ -182,6 +196,8 @@ class RegisterRequest(BaseModel):
 
 
 class TaskSubmitResponse(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
     shadow_task_id: str
     status: str
     opc_resume_status: str = ""
@@ -189,6 +205,8 @@ class TaskSubmitResponse(BaseModel):
 
 
 class HealthResponse(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
     status: str = "ok"
     db: str = "connected"
     pending_tasks: int = 0

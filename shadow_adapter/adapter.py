@@ -1,12 +1,8 @@
-"""ShadowModeAdapter — OpenOPC External Agent Adapter for Human-in-the-Loop.
+"""Core Shadow Mode Adapter for OpenOPC.
 
-This adapter inherits from OpenOPC's ``ExternalAgentAdapter`` public interface.
-When OpenOPC routes a task to the "shadow" agent, this adapter intercepts the task,
-saves it to the isolated ``ShadowStore``, releases execution, and returns
-``TaskStatus.AWAITING_HUMAN`` immediately.
-
-When a human contractor submits work via the API, ``resume_task()`` pushes the formatted
-``TaskResult`` back into OpenOPC's store and advances the work item phase to ``APPROVED``.
+Extends OpenOPC's ExternalAgentAdapter to provide a non-blocking Human-in-the-Loop (HITL)
+execution surface. Intercepts tasks, parks them in an isolated SQLite database,
+and releases execution threads instantly.
 """
 
 from __future__ import annotations
@@ -18,24 +14,25 @@ from typing import Any
 
 from loguru import logger
 
-# Import OpenOPC core types (or fallback mocks if running standalone without OpenOPC)
+from shadow_adapter.config import ShadowConfig
+from shadow_adapter.models import (
+    ShadowTask,
+    ShadowTaskStatus,
+    TaskResumeResult,
+)
+from shadow_adapter.shadow_store import ShadowStore
+
+# Import OpenOPC core types or use fallback dataclass mocks for standalone testing
 try:
-    from opc.core.models import AgentStatus, Task, TaskResult, TaskStatus
+    from opc.core.models import Task, TaskResult, TaskStatus
     from opc.layer3_agent.adapters.base import ExternalAgentAdapter
 
     HAS_OPENOPC = True
-except ImportError:  # pragma: no cover
+except ImportError:
     HAS_OPENOPC = False
-    # Mock base class and types if opc is not installed in standalone environment
     from dataclasses import dataclass, field
 
-    class AgentStatus:
-        IDLE = "idle"
-        RUNNING = "running"
-        BLOCKED = "blocked"
-        ERROR = "error"
-
-    class TaskStatus:
+    class TaskStatus:  # type: ignore[no-redef]
         PENDING = "pending"
         RUNNING = "running"
         AWAITING_HUMAN = "awaiting_human"
@@ -43,7 +40,7 @@ except ImportError:  # pragma: no cover
         FAILED = "failed"
 
     @dataclass
-    class Task:
+    class Task:  # type: ignore[no-redef]
         id: str
         session_id: str | None = None
         title: str = ""
@@ -56,7 +53,7 @@ except ImportError:  # pragma: no cover
         linked_work_item_id: str = ""
 
     @dataclass
-    class TaskResult:
+    class TaskResult:  # type: ignore[no-redef]
         status: Any
         content: str = ""
         artifacts: dict = field(default_factory=dict)
@@ -74,20 +71,11 @@ except ImportError:  # pragma: no cover
             return True
 
 
-from shadow_adapter.config import ShadowConfig
-from shadow_adapter.models import (
-    ShadowTask,
-    ShadowTaskStatus,
-    TaskResumeResult,
-)
-from shadow_adapter.shadow_store import ShadowStore
-
-
 class ShadowModeAdapter(ExternalAgentAdapter):
-    """External agent adapter that parks tasks for human contractors."""
+    """External agent adapter that parks tasks for human contractor execution."""
 
-    agent_type = "shadow"
-    default_command = ""
+    agent_type: str = "shadow"
+    default_command: str = "shadow"
 
     def __init__(
         self,
@@ -95,25 +83,23 @@ class ShadowModeAdapter(ExternalAgentAdapter):
         shadow_config: ShadowConfig | None = None,
         shadow_store: ShadowStore | None = None,
     ) -> None:
-        super().__init__(config=config)
+        super().__init__(config)
         self.shadow_config = shadow_config or ShadowConfig()
         self._shadow_store = shadow_store
 
     async def _get_store(self) -> ShadowStore:
-        if self._shadow_store is not None:
-            return self._shadow_store
-        store = ShadowStore(self.shadow_config.db_path)
-        await store.initialize()
-        self._shadow_store = store
-        return store
+        if self._shadow_store is None:
+            self._shadow_store = ShadowStore(self.shadow_config.db_path)
+            await self._shadow_store.initialize()
+        return self._shadow_store
 
     async def is_available(self) -> bool:
         """Shadow adapter is always available since it has no external CLI dependency."""
         return True
 
-    async def get_status(self) -> AgentStatus:
+    async def get_status(self) -> Any:
         """Return idle status since human work happens asynchronously out-of-band."""
-        return AgentStatus.IDLE
+        return getattr(TaskStatus, "IDLE", "idle")
 
     def build_invocation(
         self,
@@ -128,54 +114,67 @@ class ShadowModeAdapter(ExternalAgentAdapter):
         }
 
     async def execute(self, task: Task, workspace_path: str) -> TaskResult:
-        """Intercept an OpenOPC task, park it in local DB, and return AWAITING_HUMAN immediately."""
-        logger.info(f"[ShadowModeAdapter] Intercepting OpenOPC task {task.id} ('{task.title}')")
+        """Intercept an OpenOPC task, park it in local DB, and return AWAITING_HUMAN immediately.
 
-        store = await self._get_store()
+        Wrapped in an Exception Black Hole to prevent host engine process crashes.
+        """
+        try:
+            task_id = str(getattr(task, "id", "") or "").strip()
+            task_title = str(getattr(task, "title", "") or "Untitled Task").strip()
+            logger.info(f"[ShadowModeAdapter] Intercepting OpenOPC task {task_id} ('{task_title}')")
 
-        # Check if already parked
-        existing = await store.get_task_by_opc_id(task.id)
-        if existing and existing.status in (
-            ShadowTaskStatus.PENDING,
-            ShadowTaskStatus.CLAIMED,
-        ):
-            logger.info(f"[ShadowModeAdapter] Task {task.id} is already parked as {existing.id}")
-            return TaskResult(
-                status=TaskStatus.AWAITING_HUMAN,
-                content=f"Task is currently parked for human completion in Shadow Mode (shadow_id={existing.id}).",
-                artifacts={
-                    "shadow_task_id": existing.id,
-                    "opc_task_id": task.id,
-                    "parked_at": existing.parked_at.isoformat(),
-                    "status": existing.status.value,
-                },
+            store = await self._get_store()
+
+            # Check if already parked
+            existing = await store.get_task_by_opc_id(task_id)
+            if existing and existing.status in (
+                ShadowTaskStatus.PENDING,
+                ShadowTaskStatus.CLAIMED,
+            ):
+                logger.info(f"[ShadowModeAdapter] Task {task_id} is already parked as {existing.id}")
+                return TaskResult(
+                    status=TaskStatus.AWAITING_HUMAN,
+                    content=f"Task is currently parked for human completion in Shadow Mode (shadow_id={existing.id}).",
+                    artifacts={
+                        "shadow_task_id": existing.id,
+                        "opc_task_id": task_id,
+                        "parked_at": existing.parked_at.isoformat(),
+                        "status": existing.status.value,
+                    },
+                )
+
+            # Defensive Map OpenOPC Task to ShadowTask
+            shadow_task = self._task_to_shadow_task(task)
+
+            # Park in isolated SQLite store
+            await store.create_task(shadow_task)
+
+            logger.info(
+                f"[ShadowModeAdapter] Parked task {task_id} as shadow_id={shadow_task.id}. "
+                f"Returning AWAITING_HUMAN status to release thread."
             )
 
-        # Map OpenOPC Task to ShadowTask
-        shadow_task = self._task_to_shadow_task(task)
-
-        # Park in isolated SQLite store
-        await store.create_task(shadow_task)
-
-        logger.info(
-            f"[ShadowModeAdapter] Parked task {task.id} as shadow_id={shadow_task.id}. "
-            f"Returning AWAITING_HUMAN status to release thread."
-        )
-
-        return TaskResult(
-            status=TaskStatus.AWAITING_HUMAN,
-            content=(
-                f"Task '{task.title}' intercepted and parked for human contractor deliverable. "
-                f"Shadow Task ID: {shadow_task.id}"
-            ),
-            artifacts={
-                "shadow_task_id": shadow_task.id,
-                "opc_task_id": task.id,
-                "opc_work_item_id": shadow_task.opc_work_item_id,
-                "parked_at": shadow_task.parked_at.isoformat(),
-                "status": ShadowTaskStatus.PENDING.value,
-            },
-        )
+            return TaskResult(
+                status=TaskStatus.AWAITING_HUMAN,
+                content=(
+                    f"Task '{task_title}' intercepted and parked for human contractor deliverable. "
+                    f"Shadow Task ID: {shadow_task.id}"
+                ),
+                artifacts={
+                    "shadow_task_id": shadow_task.id,
+                    "opc_task_id": task_id,
+                    "opc_work_item_id": shadow_task.opc_work_item_id,
+                    "parked_at": shadow_task.parked_at.isoformat(),
+                    "status": ShadowTaskStatus.PENDING.value,
+                },
+            )
+        except Exception as exc:
+            logger.exception(f"[ShadowModeAdapter] Critical execution failure: {exc}")
+            return TaskResult(
+                status=TaskStatus.FAILED,
+                content=f"Shadow Mode Intercept Critical Error: {exc}",
+                artifacts={"error": str(exc), "source": "shadow_mode_adapter"},
+            )
 
     # ------------------------------------------------------------------
     # Helper & Resume Methods
@@ -183,22 +182,35 @@ class ShadowModeAdapter(ExternalAgentAdapter):
 
     @staticmethod
     def _task_to_shadow_task(task: Task) -> ShadowTask:
-        """Convert an OpenOPC Task model to a local ShadowTask model."""
-        work_item_id = getattr(task, "linked_work_item_id", "") or ""
+        """Defensively convert an OpenOPC Task model to a local ShadowTask model."""
+        task_id = str(getattr(task, "id", "") or "").strip()
+        session_id = getattr(task, "session_id", None)
+        project_id = str(getattr(task, "project_id", "default") or "default")
+        title = str(getattr(task, "title", "") or "Untitled Task").strip()
+        description = str(getattr(task, "description", "") or "").strip()
+        assigned_to = str(getattr(task, "assigned_to", "") or "").strip()
+        priority = int(getattr(task, "priority", 5) or 5)
+
         metadata = dict(getattr(task, "metadata", {}) or {})
+        work_item_id = str(getattr(task, "linked_work_item_id", "") or "").strip()
         if not work_item_id:
-            work_item_id = str(metadata.get("work_item_id") or metadata.get("linked_work_item_id") or "")
+            work_item_id = str(
+                metadata.get("work_item_id")
+                or metadata.get("linked_work_item_id")
+                or metadata.get("wi_id")
+                or ""
+            ).strip()
 
         return ShadowTask(
-            opc_task_id=task.id,
-            opc_session_id=getattr(task, "session_id", None),
-            opc_project_id=str(getattr(task, "project_id", "default") or "default"),
+            opc_task_id=task_id,
+            opc_session_id=session_id,
+            opc_project_id=project_id,
             opc_work_item_id=work_item_id,
             opc_metadata=metadata,
-            title=getattr(task, "title", "") or "Untitled Task",
-            description=getattr(task, "description", "") or "",
-            assigned_role=getattr(task, "assigned_to", "") or "",
-            priority=int(getattr(task, "priority", 5) or 5),
+            title=title,
+            description=description,
+            assigned_role=assigned_to,
+            priority=priority,
             status=ShadowTaskStatus.PENDING,
             parked_at=datetime.now(timezone.utc),
         )
@@ -213,7 +225,9 @@ class ShadowModeAdapter(ExternalAgentAdapter):
                 "shadow_task_id": shadow_task.id,
                 "deliverable_files": shadow_task.deliverable_files,
                 "contractor_id": shadow_task.assigned_contractor_id,
-                "submitted_at": shadow_task.submitted_at.isoformat() if shadow_task.submitted_at else "",
+                "submitted_at": (
+                    shadow_task.submitted_at.isoformat() if shadow_task.submitted_at else ""
+                ),
                 "source": "human_shadow_adapter",
             },
             cost=0.0,
@@ -228,26 +242,24 @@ class ShadowModeAdapter(ExternalAgentAdapter):
     ) -> TaskResumeResult:
         """Push human deliverable back into OpenOPC store to unblock the DAG.
 
-        This method updates:
-        1. OpenOPC Task status -> DONE, result -> TaskResult content & artifacts
-        2. OpenOPC DelegationWorkItem phase -> APPROVED (if linked_work_item_id exists)
+        Wrapped in an Exception Black Hole for safe execution.
         """
-        db_path = Path(opc_store_path)
-        if not db_path.exists():
-            msg = f"OpenOPC store.db not found at {db_path}"
-            logger.warning(msg)
-            return TaskResumeResult(
-                success=False,
-                shadow_task_id=shadow_task.id,
-                opc_task_id=shadow_task.opc_task_id,
-                error=msg,
-            )
+        try:
+            db_path = Path(opc_store_path)
+            if not db_path.exists():
+                msg = f"OpenOPC store.db not found at '{db_path}'"
+                logger.error(f"[ShadowModeAdapter] {msg}")
+                return TaskResumeResult(
+                    success=False,
+                    shadow_task_id=shadow_task.id,
+                    opc_task_id=shadow_task.opc_task_id,
+                    error=msg,
+                )
 
-        import aiosqlite
+            import aiosqlite
 
-        task_result = cls.shadow_submission_to_task_result(shadow_task)
-        result_json = json.dumps(
-            {
+            task_result = cls.shadow_submission_to_task_result(shadow_task)
+            result_json = json.dumps({
                 "status": "done",
                 "content": task_result.content,
                 "summary": task_result.content,
@@ -256,12 +268,10 @@ class ShadowModeAdapter(ExternalAgentAdapter):
                 "contractor_username": shadow_task.assigned_contractor_id or "human_contractor",
                 "cost": 0.0,
                 "token_usage": {},
-            }
-        )
+            })
 
-        now_iso = datetime.now(timezone.utc).isoformat()
+            now_iso = datetime.now(timezone.utc).isoformat()
 
-        try:
             async with aiosqlite.connect(str(db_path)) as db:
                 await db.execute("PRAGMA journal_mode=WAL")
 
@@ -303,15 +313,17 @@ class ShadowModeAdapter(ExternalAgentAdapter):
                 shadow_task_id=shadow_task.id,
                 opc_task_id=shadow_task.opc_task_id,
                 opc_task_status="done",
-                opc_work_item_phase="approved" if work_item_updated else "n/a",
-                message="Human deliverable successfully pushed to OpenOPC store.",
+                opc_work_item_phase="approved" if work_item_updated else "",
+                message="OpenOPC task and work item updated to completed state.",
             )
 
         except Exception as exc:
-            logger.error(f"[ShadowModeAdapter] Error resuming task {shadow_task.opc_task_id}: {exc}")
+            logger.exception(
+                f"[ShadowModeAdapter] Error resuming task {shadow_task.opc_task_id}: {exc}"
+            )
             return TaskResumeResult(
                 success=False,
                 shadow_task_id=shadow_task.id,
                 opc_task_id=shadow_task.opc_task_id,
-                error=str(exc),
+                error=f"Resume Exception: {exc}",
             )

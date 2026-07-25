@@ -1,8 +1,10 @@
 """FastAPI application factory for the Shadow Adapter API server.
 
 Serves:
-- REST API under `/api` (`/api/auth`, `/api/tasks`, `/api/health`)
-- Static files for the built React Human Portal (`frontend/dist`) mounted at `/` with HTML SPA fallback routing
+- Versioned REST API under `/api/v1` (`/api/v1/auth`, `/api/v1/tasks`, `/api/v1/health`)
+- Legacy backward-compatibility routes under `/api`
+- Exception Black Hole global exception handler
+- Static files for the built React Human Portal (`frontend/dist`) mounted at `/`
 - CLI runner `shadow-serve` entry point
 """
 
@@ -12,7 +14,7 @@ import argparse
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -62,11 +64,30 @@ def create_app(config: ShadowConfig | None = None) -> FastAPI:
         allow_headers=["*"],
     )
 
-    # Register REST API routers with /api prefix
-    app.include_router(auth_router, prefix="/api/auth", tags=["Auth"])
-    app.include_router(tasks_router, prefix="/api/tasks", tags=["Tasks"])
+    # ── Exception Black Hole (Global Catch-All Exception Handler) ──────────────
+    @app.exception_handler(Exception)
+    async def global_exception_handler(request: Request, exc: Exception):
+        logger.exception(f"[Global Exception Black Hole] Unhandled error on {request.url}: {exc}")
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={
+                "detail": "Internal server error occurred.",
+                "error_type": type(exc).__name__,
+                "path": str(request.url.path),
+            },
+        )
 
-    # Endpoint for /api/health directly
+    # ── Register Versioned REST API routers (/api/v1 and legacy /api) ──────────
+    # Versioned v1 endpoints
+    app.include_router(auth_router, prefix="/api/v1/auth", tags=["Auth (v1)"])
+    app.include_router(tasks_router, prefix="/api/v1/tasks", tags=["Tasks (v1)"])
+
+    # Legacy /api backwards-compatibility endpoints
+    app.include_router(auth_router, prefix="/api/auth", tags=["Auth (legacy)"])
+    app.include_router(tasks_router, prefix="/api/tasks", tags=["Tasks (legacy)"])
+
+    # Health check endpoints
+    @app.get("/api/v1/health", tags=["Health"])
     @app.get("/api/health", tags=["Health"])
     async def health_alias(request: Request):
         from shadow_adapter.api.routes_tasks import health_check
@@ -108,7 +129,7 @@ def create_app(config: ShadowConfig | None = None) -> FastAPI:
                 "message": "OpenOPC Shadow Adapter API Server",
                 "version": "0.1.0",
                 "docs": "/docs",
-                "status": "Frontend production build not found in frontend/dist. API routes active under /api.",
+                "status": "Frontend production build not found in frontend/dist. API routes active under /api/v1.",
             }
 
     return app

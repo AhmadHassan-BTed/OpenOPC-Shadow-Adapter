@@ -7,7 +7,7 @@ import {
   TaskSubmitResponse,
 } from '../types';
 
-const API_BASE = '/api';
+const API_BASE = '/api/v1';
 
 class APIError extends Error {
   constructor(public status: number, message: string) {
