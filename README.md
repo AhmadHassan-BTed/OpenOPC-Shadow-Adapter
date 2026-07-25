@@ -8,46 +8,16 @@
 
   AI AGENT — IMPLEMENTATION SPECIFICATION
   ═══════════════════════════════════════════════════════════════
-  ARCHITECTURE CONTRACT
-  ──────────────────────────────────────────────────────────────
   Base Class  : opc.layer3_agent.adapters.base.ExternalAgentAdapter
   Registry    : ADAPTER_CLASSES["shadow"] = ShadowModeAdapter
-  execute()   : MUST return TaskResult(AWAITING_HUMAN) in < 100ms
-                MUST NOT hold the calling execution thread
-  resume_task(): MUST write Phase.APPROVED to OpenOPC store.db
-                 MUST use SQLite WAL mode for concurrent-safe access
-
-  PHASE TRANSITION CONTRACT
-  ──────────────────────────────────────────────────────────────
-  RUNNING          -> AWAITING_HUMAN    via execute() return value
-  AWAITING_HUMAN   -> APPROVED          via resume_task() WAL write
-  AWAITING_HUMAN   -> READY_FOR_REWORK  via contractor rework request
-  READY_FOR_REWORK -> AWAITING_HUMAN    via AI agent re-run
-  APPROVED         -> DONE              via OpenOPC native phase hooks
-
-  IMPLEMENTATION CHECKLIST
-  ──────────────────────────────────────────────────────────────
-  [x] shadow_adapter/adapter.py      - ShadowModeAdapter class
-  [x] shadow_adapter/api/app.py      - FastAPI application & shadow-serve CLI
-  [x] shadow_adapter/api/routes_*.py - Versioned /api/v1 REST endpoints
-  [x] shadow_adapter/models.py       - Pydantic v2 models: ShadowTask, ShadowContractor
-  [x] shadow_adapter/security.py     - JWT issuance + bcrypt verification
-  [x] shadow_adapter/shadow_store.py - SQLite WAL repository for shadow_tasks.db
-  [x] shadow_adapter/upload.py       - File validation: max 5 files, 10MB each, 50MB total
-  [x] shadow_adapter/exceptions.py   - Domain exceptions for N-Tier separation
-  [x] shadow_adapter/frontend/       - React 19 + Tailwind SPA (dist/ pre-built)
-  [x] tests/test_adapter.py          - Unit tests: execute() < 50ms, state transitions
-  [x] tests/test_api.py              - Integration tests: all REST endpoints
-  [x] tests/test_shadow_store.py     - WAL concurrency tests with mock store.db
-  [x] pyproject.toml                 - Package metadata & 20 SEO keywords
-  [x] example_usage.py               - Full demo: park -> submit -> resume in < 500ms
+  See full architecture spec: docs/architecture.md
   ============================================================ -->
 
 <div align="center">
 
 # OpenOPC-Shadow-Adapter
 
-### The Non-Blocking Human-in-the-Loop (HITL) Infrastructure for OpenOPC
+### Non-Blocking Human-in-the-Loop (HITL) Infrastructure for OpenOPC
 
 **Your AI company runs itself. You — or your contractors — only touch the decisions that truly require a human.**
 
@@ -71,7 +41,7 @@
 ---
 
 > [!IMPORTANT]
-> ### ⚡ The Problem & Solution (PAS Framework)
+> ### Problem & Solution (PAS Framework)
 > 
 > **Problem:** OpenOPC multi-agent DAGs run at machine speed. Waiting for a human decision (hours or days) causes OpenOPC's 900-second execution lock to expire — **crashing the entire pipeline.**
 > 
@@ -81,7 +51,7 @@
 
 ---
 
-## ⚡ Quick Start (3 Steps)
+## Quick Start (3 Steps)
 
 ### 1. Install
 ```bash
@@ -106,7 +76,7 @@ shadow-serve --port 8800
 
 ---
 
-## 🗺️ How It Works
+## How It Works
 
 ```mermaid
 flowchart LR
@@ -142,9 +112,11 @@ flowchart LR
     OPCStore -->|8. Native Phase Hooks Trigger| UnblockNode
 ```
 
+For complete technical sequence diagrams, state machine maps, and database schemas, see **[docs/architecture.md](docs/architecture.md)**.
+
 ---
 
-## 🚀 Key Operational Use Cases
+## Key Operational Use Cases
 
 ### 1. Augmenting Vacant or Overloaded Roles
 *Lost a developer? Legal reviewer on leave? Analyst at capacity?*
@@ -159,7 +131,7 @@ In finance, healthcare, legal, and security, frameworks (SOC 2, ISO 27001, GDPR)
 
 ---
 
-## 📊 Feature Comparison
+## Feature Comparison
 
 | Capability | Standard OpenOPC | OpenOPC + Shadow Adapter |
 |:---|:---|:---|
@@ -172,48 +144,17 @@ In finance, healthcare, legal, and security, frameworks (SOC 2, ISO 27001, GDPR)
 
 ---
 
-## 🔄 Technical Sequence & State Machine
+## Architecture & Technical Deep-Dive
 
-```mermaid
-sequenceDiagram
-    autonumber
-    participant Engine as OpenOPC Engine (store.db)
-    participant Adapter as ShadowModeAdapter
-    participant Store as ShadowStore (shadow_tasks.db)
-    participant API as FastAPI Router (/api/v1)
-    participant Portal as React 19 Human Portal
-    participant Contractor as Human Contractor
-
-    Engine->>Adapter: execute task for shadow role
-    Adapter->>Store: create task record with pending status
-    Adapter-->>Engine: TaskResult with status AWAITING_HUMAN in under 50ms
-
-    Note over Engine: Execution lock released. Independent DAG tasks execute in parallel.
-
-    Contractor->>Portal: Login via POST /api/v1/auth/login
-    Portal->>API: GET /api/v1/tasks with status pending
-    API->>Store: Query pending task records
-    Store-->>API: List of ShadowTask models
-    API-->>Portal: Render Task Queue
-
-    Contractor->>Portal: Claim Task via POST /api/v1/tasks/{id}/claim
-    Portal->>API: Invoke claim task logic
-    API->>Store: Update task status to claimed
-    Store-->>Portal: Return 200 OK
-
-    Contractor->>Portal: Submit Deliverable via POST /api/v1/tasks/{id}/submit
-    Portal->>API: Multipart upload containing notes and files
-    API->>API: Validate file count, extensions, and size limits
-    API->>Store: Update task status to submitted
-    API->>Adapter: Trigger resume task pipeline
-    Adapter->>Engine: Direct WAL write to store.db setting Phase to APPROVED
-
-    Note over Engine: Native phase hooks trigger. Downstream DAG nodes resume execution automatically.
-```
+All detailed technical specifications are decoupled from this overview:
+- **[Architecture Specification & Implementation Contracts](docs/architecture.md#1-core-architecture-contracts)**
+- **[Technical Lifecycle & Sequence Diagram](docs/architecture.md#3-technical-lifecycle--sequence)**
+- **[State Machine Integration Diagram](docs/architecture.md#4-state-machine-integration)**
+- **[Database Schemas & Tables (`shadow_tasks.db`)](docs/architecture.md#6-database-schema-specification-shadow_tasksdb)**
 
 ---
 
-## ⚙️ Configuration Reference
+## Configuration Reference
 
 | Variable | Default Value | Required | Description |
 |:---|:---|:---|:---|
@@ -228,7 +169,7 @@ sequenceDiagram
 
 ---
 
-## 🛠️ Development & Testing
+## Development & Testing
 
 ```bash
 # Clone & install in editable mode
@@ -249,7 +190,7 @@ python tests/mock_openopc_engine.py
 
 **OpenOPC-Shadow-Adapter** | Non-Blocking Human-in-the-Loop Layer for OpenOPC
 
-[GitHub Repository](https://github.com/AhmadHassan-BTed/openopc-shadow-adapter) | [PyPI Package](https://pypi.org/project/openopc-shadow-adapter/) | [Issue Tracker](https://github.com/AhmadHassan-BTed/openopc-shadow-adapter/issues)
+[GitHub Repository](https://github.com/AhmadHassan-BTed/openopc-shadow-adapter) | [PyPI Package](https://pypi.org/project/openopc-shadow-adapter/) | [Issue Tracker](https://github.com/AhmadHassan-BTed/openopc-shadow-adapter/issues) | [Architecture Spec](docs/architecture.md)
 
 [![Analytics](https://visitor-badge.laobi.icu/badge?page_id=openopc.shadow-adapter&style=for-the-badge&color=6366f1)](https://github.com/AhmadHassan-BTed/openopc-shadow-adapter)
 
