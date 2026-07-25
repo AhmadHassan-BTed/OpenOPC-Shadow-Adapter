@@ -33,19 +33,20 @@
 
 <br/>
 
-> Built for [OpenOPC](https://github.com/HKUDS/OpenOPC) | Seamless Symbiote Integration | Zero Core Modifications | Production Release v0.1.0
+> Built for [OpenOPC](https://github.com/HKUDS/OpenOPC) | Zero Core Modifications | Production Release v0.1.0
 
 </div>
 
 ---
 
-## The Ideology: The Seamless Symbiote & Carbon-Silicon Continuum
+## What is OpenOPC-Shadow-Adapter?
 
-OpenOPC assembles AI-native companies through **Self-Built** staffing, **Self-Run** execution, and **Self-Grown** evolution. `openopc-shadow-adapter` acts as the **Seamless Symbiote** that expands this ecosystem to the **Carbon-Silicon Continuum**:
+`openopc-shadow-adapter` is a high-concurrency **Temporal Bridge** for OpenOPC. It allows OpenOPC agentic DAGs to pause non-blockingly when a role requires human sign-off (Carbon) or remote GPU execution (Silicon BYOC), without causing engine timeouts or stalling parallel branches.
 
-1. **No Competing UIs**: Shadow Mode is not a detached app—it is a dynamic extension of OpenOPC's `Workspace`, `Office`, and `Org` views.
-2. **Native Vocabulary**: Works directly with OpenOPC's work-item state machines (`delegation_work_items.phase`), `Company Mode`, and `Task Mode`.
-3. **Hybrid Workforce**: Recruit real humans (Carbon) or remote GPU workstations (Silicon BYOC) as first-class employees alongside local AI agents.
+1. **Non-Blocking Intercept**: Intercepts OpenOPC task execution in `<50ms`, parks the task in an isolated SQLite WAL database, and releases execution threads immediately with `AWAITING_HUMAN`.
+2. **Contractor & Silicon Worker Portal**: Provides a dedicated, secure React 19 UI and REST API (`shadow-serve`) for human reviewers and remote workers (`shadow-worker`).
+3. **Consolidated Corporate Brain**: Automatically packages ancestor deliverables, structured markdown briefs (`brief_md`), and uploaded file artifacts (`CorporateArtifacts`) for downstream context inheritance.
+4. **Canonical State Subordination**: Resumes OpenOPC's native `store.db` state machine (`delegation_work_items.phase`) instantly when deliverables are submitted.
 
 ---
 
