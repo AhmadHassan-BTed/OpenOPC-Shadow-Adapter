@@ -13,7 +13,7 @@ import asyncio
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -107,17 +107,14 @@ async def test_unknown_kwargs_bomb(shadow_store: ShadowStore, tmp_path: Path) ->
 
     mutated_task = SyntheticMutatedTask(id="opc_mutated_001")
 
-    # Pass unexpected **kwargs into execute() via method reference dispatch
-    extra_execute_kwargs = {
-        "unexpected_future_engine_param": "future_val",
-        "callback_url": "http://engine.internal/callback",
-        "retry_count": 3,
-    }
-    execute_fn = adapter.execute
-    result = await execute_fn(
+    # Cast to Any so static linters do not flag synthetic mutation test kwargs
+    adapter_any = cast(Any, adapter)
+    result = await adapter_any.execute(
         mutated_task,
         "/tmp",
-        **extra_execute_kwargs,
+        unexpected_future_engine_param="future_val",
+        callback_url="http://engine.internal/callback",
+        retry_count=3,
     )
 
     assert result.status == "awaiting_human"
@@ -134,22 +131,16 @@ async def test_unknown_kwargs_bomb(shadow_store: ShadowStore, tmp_path: Path) ->
 async def test_signature_survival() -> None:
     """Prove adapter lifecycle methods accept unexpected keyword arguments without TypeError."""
     adapter = ShadowModeAdapter()
+    adapter_any = cast(Any, adapter)
     mutated_task = SyntheticMutatedTask(id="opc_sig_001")
 
-    avail_fn = adapter.is_available
-    avail_kwargs = {"future_engine_flag": True, "timeout": 5}
-    assert await avail_fn(**avail_kwargs) is True
+    assert await adapter_any.is_available(future_engine_flag=True, timeout=5) is True
+    assert await adapter_any.get_status(engine_version="v2.5", debug=True) == "idle"
 
-    status_fn = adapter.get_status
-    status_kwargs = {"engine_version": "v2.5", "debug": True}
-    assert await status_fn(**status_kwargs) == "idle"
-
-    build_fn = adapter.build_invocation
-    build_kwargs = {"extra_opt": "opt_val"}
-    cmd, env = build_fn(
+    cmd, env = adapter_any.build_invocation(
         mutated_task,
         "/tmp",
-        **build_kwargs,
+        extra_opt="opt_val",
     )
     assert cmd == []
     assert env["mode"] == "shadow_human_in_loop"
