@@ -240,7 +240,10 @@ class ShadowModeAdapter(ExternalAgentAdapter):
         result_json = json.dumps({
             "status": "done",
             "content": task_result.content,
+            "summary": task_result.content,
             "artifacts": task_result.artifacts,
+            "submitted_by_human": True,
+            "contractor_username": shadow_task.assigned_contractor_id or "human_contractor",
             "cost": 0.0,
             "token_usage": {},
         })
