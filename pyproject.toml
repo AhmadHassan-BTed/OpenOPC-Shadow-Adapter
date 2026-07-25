@@ -73,6 +73,9 @@ Issues = "https://github.com/openopc/openopc-shadow-adapter/issues"
 [tool.hatch.build.targets.wheel]
 packages = ["shadow_adapter"]
 
+[tool.hatch.build.targets.wheel.shared-data]
+"shadow_adapter/frontend/dist" = "share/shadow_adapter/frontend/dist"
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]

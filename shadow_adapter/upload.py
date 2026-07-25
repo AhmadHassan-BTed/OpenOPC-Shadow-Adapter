@@ -34,11 +34,13 @@ class SecureUploadHandler:
     def sanitize_filename(self, filename: str) -> str:
         """Strip path components, leading dots, and illegal characters.
 
-        Example: '../../etc/passwd' -> 'etc_passwd'
+        Example: '../../etc/passwd' -> 'passwd'
+                 '..\\..\\windows\\system32\\cmd.exe' -> 'cmd.exe'
                  'my report (final!).pdf' -> 'my_report_final_.pdf'
         """
-        # Take basename only to prevent directory traversal
-        base = os.path.basename(filename)
+        # Normalize Windows backslashes to forward slashes before taking basename
+        normalized = filename.replace("\\", "/")
+        base = os.path.basename(normalized)
         # Replace non-alphanumeric (except . - _) with underscore
         cleaned = re.sub(r"[^\w\.\-]", "_", base)
         # Prevent hidden files / relative traversal dots at start

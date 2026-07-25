@@ -1,17 +1,9 @@
 """JWT authentication and password hashing for human contractors.
 
 This module is the Shadow Adapter's own auth system — completely independent
-of OpenOPC's internal user management.  It issues HS256 JWTs for contractors
-who log in through the REST API, and uses bcrypt (via passlib) for password
+of OpenOPC's internal user management. It issues HS256 JWTs for contractors
+who log in through the REST API, and uses direct bcrypt hashing for password
 storage.
-
-Architectural notes
-───────────────────
-* **Standalone** — no dependency on OpenOPC auth or session management.
-* **Bootstrap** — the first registered user is automatically granted the
-  ``admin`` role, solving the chicken-and-egg problem.
-* **Extensible** — ``create_access_token`` accepts ``custom_claims`` for
-  future RBAC / scope-based extensions.
 """
 
 from __future__ import annotations
@@ -19,14 +11,11 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
+import bcrypt
 from jose import JWTError, jwt
 from loguru import logger
-from passlib.context import CryptContext
 
 from shadow_adapter.config import ShadowConfig
-
-# bcrypt context with auto-salt
-_pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 class SecurityManager:
@@ -36,19 +25,23 @@ class SecurityManager:
         self.config = config
 
     # ------------------------------------------------------------------
-    # Password hashing
+    # Password hashing using direct bcrypt
     # ------------------------------------------------------------------
 
     @staticmethod
     def hash_password(password: str) -> str:
         """Hash a plaintext password using bcrypt with auto-salt."""
-        return _pwd_context.hash(password)
+        pwd_bytes = password.encode("utf-8")
+        salt = bcrypt.gensalt()
+        return bcrypt.hashpw(pwd_bytes, salt).decode("utf-8")
 
     @staticmethod
     def verify_password(plain_password: str, hashed_password: str) -> bool:
         """Verify a plaintext password against a bcrypt hash."""
         try:
-            return _pwd_context.verify(plain_password, hashed_password)
+            plain_bytes = plain_password.encode("utf-8")
+            hash_bytes = hashed_password.encode("utf-8")
+            return bcrypt.checkpw(plain_bytes, hash_bytes)
         except Exception:
             return False
 
@@ -65,22 +58,7 @@ class SecurityManager:
         custom_claims: dict[str, Any] | None = None,
         expires_delta: timedelta | None = None,
     ) -> str:
-        """Create a signed JWT access token.
-
-        Parameters
-        ----------
-        contractor_id:
-            The contractor's unique ID (becomes the ``sub`` claim).
-        username:
-            The contractor's login name.
-        roles:
-            List of role strings (e.g. ``["contractor"]``, ``["admin"]``).
-        custom_claims:
-            Optional extra claims merged into the payload for future
-            RBAC or scope extensions.
-        expires_delta:
-            Override the default expiry (``config.jwt_expire_hours``).
-        """
+        """Create a signed JWT access token."""
         now = datetime.now(timezone.utc)
         expire = now + (
             expires_delta
@@ -104,16 +82,7 @@ class SecurityManager:
         )
 
     def decode_token(self, token: str) -> dict[str, Any]:
-        """Decode and validate a JWT token.
-
-        Returns the full claims dict on success.
-
-        Raises
-        ------
-        ValueError
-            If the token is expired, has an invalid signature, or is
-            malformed.
-        """
+        """Decode and validate a JWT token."""
         try:
             payload = jwt.decode(
                 token,
@@ -124,7 +93,6 @@ class SecurityManager:
             logger.debug(f"JWT decode failed: {exc}")
             raise ValueError(f"Invalid or expired token: {exc}") from exc
 
-        # Validate required claims
         if not payload.get("sub"):
             raise ValueError("Token missing 'sub' claim")
         if not payload.get("username"):
@@ -134,5 +102,5 @@ class SecurityManager:
 
     @property
     def token_expire_seconds(self) -> int:
-        """Token lifetime in seconds (for API response ``expires_in``)."""
+        """Token lifetime in seconds."""
         return self.config.jwt_expire_hours * 3600
