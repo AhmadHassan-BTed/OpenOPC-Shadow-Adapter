@@ -45,14 +45,14 @@
 
 <div align="center">
 
-# openopc-shadow-adapter
+# OpenOPC-Shadow-Adapter
 
 ### Production-Grade Human-in-the-Loop (HITL) Layer for OpenOPC Multi-Agent Workflows
 
 **Run your AI company on 24/7 autopilot. Intercept human approval steps, release execution locks, and resume DAG workflows seamlessly.**
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://pypi.org/project/openopc-shadow-adapter/)
-[![PyPI Version](https://img.shields.io/pypi/v/openopc-shadow-adapter?style=for-the-badge&color=0c111b&label=PyPI)](https://pypi.org/project/openopc-shadow-adapter/)
+[![PyPI Package](https://img.shields.io/badge/pypi-v0.1.0--ready-0c111b?style=for-the-badge&logo=pypi&logoColor=white)](https://pypi.org/project/openopc-shadow-adapter/)
 [![MIT License](https://img.shields.io/badge/license-MIT-22c55e?style=for-the-badge)](LICENSE)
 
 [![FastAPI](https://img.shields.io/badge/backend-FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
