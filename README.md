@@ -1,25 +1,9 @@
-<!-- ============================================================
-  ██████╗  █████╗  ██████╗    ███████╗██████╗ ███████╗ ██████╗
-  ██╔══██╗██╔══██╗██╔════╝    ██╔════╝██╔══██╗██╔════╝██╔════╝
-  ██║  ██║███████║██║  ███╗   ███████╗██████╔╝█████╗  ██║
-  ██║  ██║██╔══██║██║   ██║   ╚════██║██╔═══╝ ██╔══╝  ██║
-  ██████╔╝██║  ██║╚██████╔╝   ███████║██║     ███████╗╚██████╗
-  ╚═════╝ ╚═╝  ╚═╝ ╚═════╝    ╚══════╝╚═╝     ╚══════╝ ╚═════╝
-
-  AI AGENT — IMPLEMENTATION SPECIFICATION
-  ═══════════════════════════════════════════════════════════════
-  Base Class  : opc.layer3_agent.adapters.base.ExternalAgentAdapter
-  Registry    : ADAPTER_CLASSES["shadow"] = ShadowModeAdapter
-  See full architecture spec: docs/architecture.md
-  ============================================================ -->
-
 <div align="center">
 
 # OpenOPC-Shadow-Adapter
-
 ### Non-Blocking Human-in-the-Loop (HITL) Infrastructure for OpenOPC
 
-**Your AI company runs itself. You — or your contractors — only touch the decisions that truly require a human.**
+**AI Agent Employees For Your Company**
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://pypi.org/project/openopc-shadow-adapter/)
 [![PyPI Package](https://img.shields.io/badge/pypi-v0.1.0--ready-0c111b?style=for-the-badge&logo=pypi&logoColor=white)](https://pypi.org/project/openopc-shadow-adapter/)
@@ -37,17 +21,6 @@
 > Built for [OpenOPC](https://github.com/HKUDS/OpenOPC) | Zero Core Modifications | Production Release v0.1.0
 
 </div>
-
----
-
-> [!IMPORTANT]
-> ### Problem & Solution (PAS Framework)
-> 
-> **Problem:** OpenOPC multi-agent DAGs run at machine speed. Waiting for a human decision (hours or days) causes OpenOPC's 900-second execution lock to expire — **crashing the entire pipeline.**
-> 
-> **Agitation:** Halting your entire AI workforce because one human reviewer is offline destroys operational speed and reliability.
-> 
-> **Solution:** `openopc-shadow-adapter` intercepts human-backed roles in **< 50ms**, parks state safely in an isolated SQLite database, and releases the execution thread instantly. Your AI company keeps running. When the human signs off in the **React Human Portal**, the adapter resumes the DAG automatically.
 
 ---
 
@@ -119,28 +92,51 @@ For complete technical sequence diagrams, state machine maps, and database schem
 
 ---
 
-## Quick Start (3 Steps)
+## Quick Start & Integration Guide
 
-### 1. Install
+### Step 1: Install Package
 ```bash
 pip install openopc-shadow-adapter
 ```
 
-### 2. Register Adapter
+### Step 2: Register Adapter in Your Python Startup Script
+In your main OpenOPC application script (e.g., `main.py` or `run_company.py`), register the adapter **before** initializing or running your OpenOPC DAG pipeline:
+
 ```python
+# main.py (Your OpenOPC application entry point)
 from opc.layer3_agent.adapters.registry import ADAPTER_CLASSES
 from shadow_adapter.adapter import ShadowModeAdapter
 
-# Register Shadow Mode adapter into OpenOPC engine
+# Register "shadow" mode into OpenOPC's adapter registry
 ADAPTER_CLASSES["shadow"] = ShadowModeAdapter
+
+# Now launch your OpenOPC DAG engine as normal
 ```
 
-### 3. Launch Human Portal Server
+### Step 3: Configure Role in Your Organization Config
+In your OpenOPC organization config (`.opc/config/company_orgs/company_config.yaml`), set `preferred_external_agent: shadow` for any role requiring human review:
+
+```yaml
+roles:
+  legal_counsel:
+    title: "Human Legal Counsel"
+    execution_strategy: external
+    preferred_external_agent: shadow  # <-- Routes tasks to Shadow Adapter
+
+  senior_architect:
+    title: "Human Senior Architect"
+    execution_strategy: external
+    preferred_external_agent: shadow  # <-- Routes tasks to Shadow Adapter
+```
+
+### Step 4: Launch Web Portal Server
+Run the REST server and React Human Web Portal in your terminal:
+
 ```bash
 shadow-serve --port 8800
 ```
-- **Web Portal:** `http://localhost:8800`
-- **REST API:** `http://localhost:8800/api/v1`
+- **React Human Web Portal:** `http://localhost:8800`
+- **REST API Base:** `http://localhost:8800/api/v1`
 
 ---
 
