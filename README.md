@@ -16,9 +16,9 @@
 <div align="center">
 
 # OpenOPC-Shadow-Adapter
-### Non-Blocking Human-in-the-Loop (HITL) Infrastructure for OpenOPC
+### Non-Blocking Human-in-the-Loop (HITL) & BYOC Infrastructure for OpenOPC
 
-**AI Agent Employees For Your Company**
+**The Carbon-Silicon Continuum: Real Humans & Remote PCs as First-Class OpenOPC Employees**
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://pypi.org/project/openopc-shadow-adapter/)
 [![PyPI Package](https://img.shields.io/badge/pypi-v0.1.0--ready-0c111b?style=for-the-badge&logo=pypi&logoColor=white)](https://pypi.org/project/openopc-shadow-adapter/)
@@ -33,12 +33,23 @@
 
 <br/>
 
-> Built for [OpenOPC](https://github.com/HKUDS/OpenOPC) | Zero Core Modifications | Production Release v0.1.0
+> Built for [OpenOPC](https://github.com/HKUDS/OpenOPC) | Seamless Symbiote Integration | Zero Core Modifications | Production Release v0.1.0
 
 </div>
 
 ---
-## Appoint AI Agents to
+
+## The Ideology: The Seamless Symbiote & Carbon-Silicon Continuum
+
+OpenOPC assembles AI-native companies through **Self-Built** staffing, **Self-Run** execution, and **Self-Grown** evolution. `openopc-shadow-adapter` acts as the **Seamless Symbiote** that expands this ecosystem to the **Carbon-Silicon Continuum**:
+
+1. **No Competing UIs**: Shadow Mode is not a detached app—it is a dynamic extension of OpenOPC's `Workspace`, `Office`, and `Org` views.
+2. **Native Vocabulary**: Works directly with OpenOPC's work-item state machines (`delegation_work_items.phase`), `Company Mode`, and `Task Mode`.
+3. **Hybrid Workforce**: Recruit real humans (Carbon) or remote GPU workstations (Silicon BYOC) as first-class employees alongside local AI agents.
+
+---
+
+## Appoint AI Agents & Hybrid Employees to
 
 ### Automate Freelance & Multiple Jobs (Overemployment Engine)
 *Juggling multiple client contracts or simultaneous full-time roles?*
