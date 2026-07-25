@@ -129,12 +129,12 @@ async def get_handoff_service(
 ) -> HandoffService:
     """Inject HandoffService (The Temporal Bridge)."""
     return HandoffService(
-        shadow_store=store,
-        opc_resume_repo=opc_resume,
-        upload_handler=upload_handler,
-        upload_limits=upload_limits,
-        artifact_repo=artifact_repo,
-        org_service=org_service,
+        store,
+        opc_resume,
+        upload_handler,
+        upload_limits,
+        artifact_repo,
+        org_service,
     )
 
 

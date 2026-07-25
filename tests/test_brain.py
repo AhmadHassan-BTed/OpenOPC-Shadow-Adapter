@@ -72,7 +72,7 @@ async def test_upstream_context_inheritance(
     await art_repo.initialize()
 
     opc_resume = OpcResumeRepository()
-    handoff = HandoffService(shadow_store, opc_resume, handler, limits, artifact_repo=art_repo)
+    handoff = HandoffService(shadow_store, opc_resume, handler, limits, art_repo)
     adapter = ShadowModeAdapter(shadow_config=shadow_config, shadow_store=shadow_store)
 
     # 1. Parent Coder Task
