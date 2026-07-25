@@ -267,42 +267,43 @@ class ShadowStore:
 
     async def claim_task(self, task_id: str, contractor_id: str) -> ShadowTask:
         """Claim a pending task for a contractor. Raises ValueError on conflict."""
-        task = await self.get_task(task_id)
-        if not task:
-            raise ValueError(f"Task not found: {task_id}")
-        if task.status != ShadowTaskStatus.PENDING:
-            raise ValueError(f"Cannot claim task {task_id}: status is '{task.status.value}', expected 'pending'")
         now = _now_iso()
         assert self._db is not None
-        await self._db.execute(
+        cursor = await self._db.execute(
             """UPDATE shadow_tasks
                SET status = ?, assigned_contractor_id = ?,
                    claimed_at = ?, updated_at = ?
                WHERE id = ? AND status = 'pending'""",
             (ShadowTaskStatus.CLAIMED.value, contractor_id, now, now, task_id),
         )
+        if cursor.rowcount == 0:
+            task = await self.get_task(task_id)
+            if not task:
+                raise ValueError(f"Task not found: {task_id}")
+            raise ValueError(f"Cannot claim task {task_id}: status is '{task.status.value}', expected 'pending'")
         await self._db.commit()
         await self._audit(task_id, contractor_id, "claimed", {})
         return await self.get_task(task_id)  # type: ignore[return-value]
 
     async def unclaim_task(self, task_id: str, contractor_id: str) -> ShadowTask:
         """Release a claimed task back to pending."""
-        task = await self.get_task(task_id)
-        if not task:
-            raise TaskNotFoundError(task_id)
-        if task.status != ShadowTaskStatus.CLAIMED:
-            raise TaskNotClaimedError(task_id, task.status.value)
-        if task.assigned_contractor_id != contractor_id:
-            raise TaskPermissionError(task_id, task.assigned_contractor_id or "")
         now = _now_iso()
         assert self._db is not None
-        await self._db.execute(
+        cursor = await self._db.execute(
             """UPDATE shadow_tasks
                SET status = 'pending', assigned_contractor_id = NULL,
                    claimed_at = NULL, updated_at = ?
-               WHERE id = ?""",
-            (now, task_id),
+               WHERE id = ? AND status = 'claimed' AND assigned_contractor_id = ?""",
+            (now, task_id, contractor_id),
         )
+        if cursor.rowcount == 0:
+            task = await self.get_task(task_id)
+            if not task:
+                raise TaskNotFoundError(task_id)
+            if task.status != ShadowTaskStatus.CLAIMED:
+                raise TaskNotClaimedError(task_id, task.status.value)
+            if task.assigned_contractor_id != contractor_id:
+                raise TaskPermissionError(task_id, task.assigned_contractor_id or "")
         await self._db.commit()
         await self._audit(task_id, contractor_id, "unclaimed", {})
         return await self.get_task(task_id)  # type: ignore[return-value]
@@ -314,31 +315,33 @@ class ShadowStore:
         submission: ShadowSubmission,
     ) -> ShadowTask:
         """Record a deliverable submission for a claimed task."""
-        task = await self.get_task(task_id)
-        if not task:
-            raise TaskNotFoundError(task_id)
-        if task.status != ShadowTaskStatus.CLAIMED:
-            raise TaskNotClaimedError(task_id, task.status.value)
-        if task.assigned_contractor_id != contractor_id:
-            raise TaskPermissionError(task_id, task.assigned_contractor_id or "")
         now = _now_iso()
         assert self._db is not None
-        await self._db.execute(
+        cursor = await self._db.execute(
             """UPDATE shadow_tasks
                SET status = 'submitted',
                    deliverable_text = ?,
                    deliverable_files_json = ?,
                    submitted_at = ?,
                    updated_at = ?
-               WHERE id = ?""",
+               WHERE id = ? AND status = 'claimed' AND assigned_contractor_id = ?""",
             (
                 submission.deliverable_text,
                 json.dumps(submission.deliverable_files),
                 now,
                 now,
                 task_id,
+                contractor_id,
             ),
         )
+        if cursor.rowcount == 0:
+            task = await self.get_task(task_id)
+            if not task:
+                raise TaskNotFoundError(task_id)
+            if task.status != ShadowTaskStatus.CLAIMED:
+                raise TaskNotClaimedError(task_id, task.status.value)
+            if task.assigned_contractor_id != contractor_id:
+                raise TaskPermissionError(task_id, task.assigned_contractor_id or "")
         await self._db.commit()
         await self._audit(
             task_id,

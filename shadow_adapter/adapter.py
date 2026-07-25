@@ -81,6 +81,8 @@ class ShadowModeAdapter(ExternalAgentAdapter):
         config: Any = None,
         shadow_config: ShadowConfig | None = None,
         shadow_store: ShadowStore | None = None,
+        *args: Any,
+        **kwargs: Any,
     ) -> None:
         super().__init__(config)
         self.shadow_config = shadow_config or ShadowConfig()
@@ -92,11 +94,11 @@ class ShadowModeAdapter(ExternalAgentAdapter):
             await self._shadow_store.initialize()
         return self._shadow_store
 
-    async def is_available(self) -> bool:
+    async def is_available(self, *args: Any, **kwargs: Any) -> bool:
         """Shadow adapter is always available since it has no external CLI dependency."""
         return True
 
-    async def get_status(self) -> Any:
+    async def get_status(self, *args: Any, **kwargs: Any) -> Any:
         """Return idle status since human work happens asynchronously out-of-band."""
         return getattr(TaskStatus, "IDLE", "idle")
 
@@ -104,6 +106,8 @@ class ShadowModeAdapter(ExternalAgentAdapter):
         self,
         task: Task,
         workspace_path: str | None = None,
+        *args: Any,
+        **kwargs: Any,
     ) -> tuple[list[str], dict[str, Any]]:
         """Return empty command list because shadow tasks do not launch subprocesses."""
         return [], {
@@ -112,7 +116,13 @@ class ShadowModeAdapter(ExternalAgentAdapter):
             "mode": "shadow_human_in_loop",
         }
 
-    async def execute(self, task: Task, workspace_path: str) -> TaskResult:
+    async def execute(
+        self,
+        task: Task,
+        workspace_path: str = "",
+        *args: Any,
+        **kwargs: Any,
+    ) -> TaskResult:
         """Intercept an OpenOPC task, park it in local DB, and return AWAITING_HUMAN immediately.
 
         Wrapped in an Exception Black Hole to prevent host engine process crashes.
@@ -233,6 +243,8 @@ class ShadowModeAdapter(ExternalAgentAdapter):
         cls,
         shadow_task: ShadowTask,
         opc_store_path: str | Path,
+        *args: Any,
+        **kwargs: Any,
     ) -> TaskResumeResult:
         """Push human deliverable back into OpenOPC store to unblock the DAG.
 

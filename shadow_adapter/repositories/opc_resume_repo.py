@@ -77,7 +77,9 @@ class OpcResumeRepository:
                 )
 
                 if cursor.rowcount == 0:
-                    logger.warning(f"No OpenOPC task row matched id={shadow_task.opc_task_id}")
+                    logger.warning(
+                        f"[OpcResumeRepository] No OpenOPC task row matched id '{shadow_task.opc_task_id}' in store.db"
+                    )
 
                 # Step 4: If linked to a work item, advance phase
                 work_item_updated = False
