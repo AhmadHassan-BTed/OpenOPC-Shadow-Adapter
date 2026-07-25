@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import hashlib
 import io
+from typing import Any
 
 from loguru import logger
 
@@ -54,6 +55,8 @@ class HandoffService:
         upload_limits: UploadLimits,
         artifact_repo: CorporateArtifactsRepository | None = None,
         org_service: OrgHierarchyService | None = None,
+        *args: Any,
+        **kwargs: Any,
     ) -> None:
         self._store = shadow_store
         self._opc_resume = opc_resume_repo

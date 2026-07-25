@@ -10,8 +10,31 @@ import json
 from pathlib import Path
 
 import pytest
-from hypothesis import HealthCheck, given, settings
-from hypothesis import strategies as st
+
+try:
+    from hypothesis import HealthCheck, given, settings
+    from hypothesis import strategies as st
+
+    HAS_HYPOTHESIS = True
+except ImportError:
+    HAS_HYPOTHESIS = False
+
+    def given(*args, **kwargs):  # type: ignore[misc]
+        def decorator(f):
+            return f
+
+        return decorator
+
+    class HealthCheck:  # type: ignore[no-redef]
+        too_slow = "too_slow"
+
+    def settings(*args, **kwargs):  # type: ignore[misc]
+        def decorator(f):
+            return f
+
+        return decorator
+
+    st = None  # type: ignore[assignment]
 
 from shadow_adapter.models import (
     ShadowTask,
@@ -24,7 +47,10 @@ from shadow_adapter.services.handoff_service import HandoffService
 from shadow_adapter.shadow_store import ShadowStore
 from shadow_adapter.upload import SecureUploadHandler
 
-pytestmark = pytest.mark.asyncio
+pytestmark = [
+    pytest.mark.asyncio,
+    pytest.mark.skipif(not HAS_HYPOTHESIS, reason="hypothesis package is not installed"),
+]
 
 
 # ---------------------------------------------------------------------------
