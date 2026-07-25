@@ -70,7 +70,9 @@
 
 ---
 
-## Core Philosophy: Loud in the Silence
+---
+
+## Core Philosophy & Product Vision
 
 OpenOPC allows organizations to deploy automated teams of AI agents that plan, delegate, execute, and review work autonomously — orchestrated through a **dependency DAG** where independent tasks run in parallel and dependent tasks wait for their prerequisites.
 
@@ -135,16 +137,93 @@ flowchart LR
 
 ---
 
-## Core Use Cases
+## Primary Operational Use Cases
 
-### 1. Augmenting Vacant or Overloaded Roles
-When an organization faces a temporary staffing gap (e.g., a vacant legal reviewer or overloaded QA engineer), OpenOPC AI agents perform 90% of the preliminary work — researching precedents, drafting documents, running automated tests, and formatting reports. Shadow Adapter routes only the final 10% (the approval decision) to an available human manager.
+### Use Case 1 — Automate Roles in Your Existing Organization
 
-### 2. Autonomous Business Operations for Solo Operators
-Founders, consultants, and solo practitioners can run entire AI-driven business functions (research, development, marketing, legal drafting) on autopilot. The operator receives notifications only when a strategic decision, financial sign-off, or client deliverable requires executive authorization.
+> *You lost a developer. Your legal reviewer is on leave. Your analyst is at capacity.*  
+> **Don't halt operations. Deploy the adapter.**
 
-### 3. Regulatory & Enterprise Compliance Checkpoints
-In regulated industries (finance, healthcare, legal, security), compliance frameworks (SOC 2, ISO 27001, GDPR) prohibit fully autonomous machine decisions without verified human oversight. Shadow Adapter provides cryptographic user authentication, strict upload controls, and immutable audit logs to satisfy compliance requirements.
+```mermaid
+flowchart TD
+    Start(["Your Organization\nHas a Vacant or Overloaded Role"])
+
+    Start --> AI
+    AI["AI Shadow Agent\nHandles 90% of the Work\n────────────────────\n• Research & analysis\n• Drafting & writing\n• Code generation & testing\n• Formatting & communication\n• Review & quality checking"]
+
+    AI -->|Reaches a task requiring\nhuman authority or judgment| SA
+
+    SA["Shadow Adapter\nIntercepts the Task\n────────────────────\nParks in shadow_tasks.db\nReturns AWAITING_HUMAN\nReleases DAG thread"]
+
+    SA --> Portal
+    Portal["React Human Portal\n────────────────────\nAvailable team member\nreceives task in queue\nReviews full AI context\nSubmits decision"]
+
+    Portal --> Human{Human Decision}
+
+    Human -->|Approved| Resume
+    Human -->|Needs rework| Feedback
+    Feedback --> AI
+
+    Resume(["DAG Resumes\nAll downstream tasks\nunblock automatically"])
+
+    style AI fill:#1e293b,color:#94a3b8,stroke:#334155
+    style SA fill:#6366f1,color:#fff,stroke:#4f46e5
+    style Resume fill:#22c55e,color:#fff,stroke:#16a34a
+    style Portal fill:#0c111b,color:#94a3b8,stroke:#334155
+```
+
+**Real-world application:**
+
+- **Lost your senior developer?** AI writes, reviews, and tests code. Shadow Adapter routes production deploys and architecture decisions to a remaining engineer for approval only.
+- **Need legal coverage?** AI drafts contracts and flags risk clauses. Shadow Adapter sends the final document to your counsel for sign-off.
+- **Scaling a content operation?** AI researches, drafts, and formats every piece. Shadow Adapter queues each one for an editor's final approval before publishing.
+- **Financial analysis pipeline?** AI builds models and writes memos. Shadow Adapter routes investment committee decisions to your analysts for approval.
+
+---
+
+### Use Case 2 — Run Your Entire Company on AI Autopilot
+
+> *One person. The output of a 10-person team.*  
+> **You oversee. The AI executes. The adapter bridges the gap.**
+
+```mermaid
+flowchart TD
+    You(["YOU\nThe Solo Operator\nFreelancer · Founder · Consultant"])
+
+    You -->|Only reviews items\nthat need your authority| Queue
+
+    Queue["Your Approval Queue\n────────────────────\n• Strategic decisions\n• Client deliverables\n• Sensitive sign-offs\n• Creative direction\n• Financial authorization"]
+
+    Queue -->|Your approved decisions\nresume the DAG| Company
+
+    subgraph Company["Your AI Company — Runs Autonomously on OpenOPC"]
+        direction LR
+        Research["AI Research Analyst\n──────────\nMarket maps\nDue diligence\nCompetitive intel"]
+        Dev["AI Dev Team\n──────────\nWrites code\nReviews PRs\nFixes bugs"]
+        Marketing["AI Marketing & Content\n──────────\nWrites copy\nCreates briefs\nDrafts emails"]
+        Legal["AI Legal Counsel\n──────────\nDrafts contracts\nFlags risks\nFormats filings"]
+    end
+
+    Company -->|Hits human-only\ncheckpoints| Queue
+
+    style You fill:#22c55e,color:#fff,stroke:#16a34a
+    style Queue fill:#6366f1,color:#fff,stroke:#4f46e5
+```
+
+**What this means in practice:**
+
+- Your **AI Research Analyst** runs market analysis, competitor mapping, and due diligence 24/7 across dozens of projects simultaneously.
+- Your **AI Dev Team** writes features, runs tests, and reviews PRs — you only approve production deployments and architectural pivots.
+- Your **AI Legal Counsel** drafts all contracts and NDAs — you spend 10 minutes reviewing rather than 4 hours drafting.
+- The **Shadow Adapter** is the invisible infrastructure that makes all of this safe, audit-compliant, and crash-proof.
+
+---
+
+### Use Case 3 — Enterprise Compliance & Regulated Industry Workflows
+
+For teams building AI automation in **finance, legal, healthcare, or security**, regulatory requirements mandate human sign-off at defined workflow stages. Shadow Adapter makes compliance a **first-class architectural feature** — not an afterthought patched onto an autonomous pipeline.
+
+The adapter's immutable audit log records every lifecycle event with timestamps and contractor attribution, satisfying SOC 2, ISO 27001, and GDPR review requirements for human oversight in automated decision systems.
 
 ---
 
