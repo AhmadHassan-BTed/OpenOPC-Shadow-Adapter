@@ -70,8 +70,6 @@
 
 ---
 
----
-
 ## Core Philosophy & Product Vision
 
 OpenOPC allows organizations to deploy automated teams of AI agents that plan, delegate, execute, and review work autonomously — orchestrated through a **dependency DAG** where independent tasks run in parallel and dependent tasks wait for their prerequisites.
@@ -103,22 +101,44 @@ But every real business reaches a moment where **a human must step in.** A lawye
 
 ```mermaid
 flowchart LR
-    DAG["OpenOPC AI\nWorkflow Engine"]
-    SA["Shadow Mode\nAdapter"]
-    DB[("SQLite Store\nshadow_tasks.db")]
-    Portal["React Human\nWeb Portal"]
-    Resume(["OpenOPC DAG\nResumes"])
+    subgraph Engine ["OpenOPC Agentic DAG Engine"]
+        DAG["Multi-Agent DAG Execution\n(Tasks running in parallel)"]
+    end
 
-    DAG -->|Task needs human sign-off| SA
-    SA -->|Parks task in 47ms| DB
-    SA -->|Returns AWAITING_HUMAN\nReleases execution lock| DAG
-    DAG -->|Parallel AI tasks\ncontinue running| Resume
-    DB --> Portal
-    Portal -->|Human contractor submits\napproval or deliverable| Resume
+    subgraph Adapter ["Shadow Mode Plugin"]
+        SA["ShadowModeAdapter\n(execute < 50ms)"]
+    end
 
-    style SA fill:#6366f1,color:#fff,stroke:#4f46e5
-    style Resume fill:#22c55e,color:#fff,stroke:#16a34a
-    style DB fill:#0c111b,color:#94a3b8,stroke:#334155
+    subgraph Store ["Isolated Persistence Layer"]
+        DB[("SQLite WAL Store\nshadow_tasks.db")]
+    end
+
+    subgraph Portal ["Human Operations"]
+        ReactApp["React 19 Human Portal\n(JWT Authenticated Queue)"]
+        HumanReviewer["Human Contractor / Manager"]
+    end
+
+    subgraph ResumeLayer ["DAG Unblock & Resume"]
+        OPCStore[("OpenOPC Engine Store\nstore.db (WAL Mode)")]
+        UnblockNode(["Downstream DAG Nodes\nResume Automatically"])
+    end
+
+    DAG -->|1. Intercepts human-backed task| SA
+    SA -->|2. Parks task record| DB
+    SA -->|3. Returns AWAITING_HUMAN\nReleases thread immediately| DAG
+    DB <-->|4. Fetch queue & Submit deliverable| ReactApp
+    HumanReviewer <-->|5. Review brief & attach files| ReactApp
+    ReactApp -->|6. POST /api/v1/tasks/{id}/submit| SA
+    SA -->|7. resume_task(): Write Phase.APPROVED| OPCStore
+    OPCStore -->|8. Native Phase Hooks Trigger| UnblockNode
+
+    style DAG fill:#0c111b,color:#f8fafc,stroke:#3b82f6,stroke-width:2px
+    style SA fill:#4f46e5,color:#ffffff,stroke:#6366f1,stroke-width:2px
+    style DB fill:#0f172a,color:#e2e8f0,stroke:#64748b,stroke-width:2px
+    style ReactApp fill:#0284c7,color:#ffffff,stroke:#38bdf8,stroke-width:2px
+    style HumanReviewer fill:#059669,color:#ffffff,stroke:#10b981,stroke-width:2px
+    style OPCStore fill:#0f172a,color:#e2e8f0,stroke:#64748b,stroke-width:2px
+    style UnblockNode fill:#16a34a,color:#ffffff,stroke:#22c55e,stroke-width:2px
 ```
 
 ---
@@ -149,27 +169,31 @@ flowchart TD
     Start(["Your Organization\nHas a Vacant or Overloaded Role"])
 
     Start --> AI
-    AI["AI Shadow Agent\nHandles 90% of the Work\n────────────────────\n• Research & analysis\n• Drafting & writing\n• Code generation & testing\n• Formatting & communication\n• Review & quality checking"]
+    AI["AI Shadow Agent Handles 90% Preliminary Work\n──────────────────────────────────────\n• Market & technical research\n• Drafting briefs & code generation\n• Test suite execution & static analysis\n• Data normalization & formatting"]
 
-    AI -->|Reaches a task requiring\nhuman authority or judgment| SA
+    AI -->|Reaches decision requiring human authority| Intercept
 
-    SA["Shadow Adapter\nIntercepts the Task\n────────────────────\nParks in shadow_tasks.db\nReturns AWAITING_HUMAN\nReleases DAG thread"]
+    Intercept["ShadowModeAdapter Intercepts Task\n──────────────────────────────────────\n• Parks record in shadow_tasks.db (< 50ms)\n• Returns TaskResult(status = AWAITING_HUMAN)\n• Releases engine execution lock instantly"]
 
-    SA --> Portal
-    Portal["React Human Portal\n────────────────────\nAvailable team member\nreceives task in queue\nReviews full AI context\nSubmits decision"]
+    Intercept --> Queue
+    Queue["React 19 Human Review Portal\n──────────────────────────────────────\n• Pending queue notification\n• Full AI context & prompt brief\n• Contractor claims task & attaches deliverables"]
 
-    Portal --> Human{Human Decision}
+    Queue --> Decision{Human Decision}
 
-    Human -->|Approved| Resume
-    Human -->|Needs rework| Feedback
-    Feedback --> AI
+    Decision -->|Approved| ResumePipeline["resume_task() Triggered\nDirect SQLite WAL write to store.db"]
+    Decision -->|Request Rework| ReworkPipeline["Status -> rework_requested\nAI Agent re-executes with feedback"]
+    ReworkPipeline --> AI
 
-    Resume(["DAG Resumes\nAll downstream tasks\nunblock automatically"])
+    ResumePipeline --> Complete(["OpenOPC DAG Resumes\nDownstream AI agents unblock automatically"])
 
-    style AI fill:#1e293b,color:#94a3b8,stroke:#334155
-    style SA fill:#6366f1,color:#fff,stroke:#4f46e5
-    style Resume fill:#22c55e,color:#fff,stroke:#16a34a
-    style Portal fill:#0c111b,color:#94a3b8,stroke:#334155
+    style Start fill:#1e293b,color:#cbd5e1,stroke:#475569,stroke-width:2px
+    style AI fill:#0f172a,color:#f1f5f9,stroke:#3b82f6,stroke-width:2px
+    style Intercept fill:#4f46e5,color:#ffffff,stroke:#6366f1,stroke-width:2px
+    style Queue fill:#0284c7,color:#ffffff,stroke:#38bdf8,stroke-width:2px
+    style Decision fill:#d97706,color:#ffffff,stroke:#f59e0b,stroke-width:2px
+    style ResumePipeline fill:#16a34a,color:#ffffff,stroke:#22c55e,stroke-width:2px
+    style ReworkPipeline fill:#dc2626,color:#ffffff,stroke:#ef4444,stroke-width:2px
+    style Complete fill:#15803d,color:#ffffff,stroke:#22c55e,stroke-width:2px
 ```
 
 **Real-world application:**
@@ -188,26 +212,31 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    You(["YOU\nThe Solo Operator\nFreelancer · Founder · Consultant"])
+    Operator(["Solo Operator / Founder / Consultant\n(Executive Oversight Only)"])
 
-    You -->|Only reviews items\nthat need your authority| Queue
+    Operator -->|Reviews & signs off on critical checkpoints| Queue
 
-    Queue["Your Approval Queue\n────────────────────\n• Strategic decisions\n• Client deliverables\n• Sensitive sign-offs\n• Creative direction\n• Financial authorization"]
+    Queue["Approval Queue Dashboard\n──────────────────────────────────────\n• Strategic architectural decisions\n• Production deployment authorizations\n• High-value contract sign-offs\n• Financial & budget releases"]
 
-    Queue -->|Your approved decisions\nresume the DAG| Company
+    Queue -->|Approved decisions resume DAG| Company
 
-    subgraph Company["Your AI Company — Runs Autonomously on OpenOPC"]
+    subgraph Company ["Your Autonomous AI Company Running on OpenOPC"]
         direction LR
-        Research["AI Research Analyst\n──────────\nMarket maps\nDue diligence\nCompetitive intel"]
-        Dev["AI Dev Team\n──────────\nWrites code\nReviews PRs\nFixes bugs"]
-        Marketing["AI Marketing & Content\n──────────\nWrites copy\nCreates briefs\nDrafts emails"]
-        Legal["AI Legal Counsel\n──────────\nDrafts contracts\nFlags risks\nFormats filings"]
+        Research["AI Research Analyst\n─────────────────\nMarket analysis\nDue diligence\nCompetitive intel"]
+        Dev["AI Dev Team\n─────────────────\nWrites features\nRuns test suites\nReviews PRs"]
+        Marketing["AI Marketing & Content\n─────────────────\nDrafts campaigns\nWrites copy\nPrepares briefs"]
+        Legal["AI Legal Counsel\n─────────────────\nDrafts NDAs\nAnalyzes contracts\nFlags risk clauses"]
     end
 
-    Company -->|Hits human-only\ncheckpoints| Queue
+    Company -->|Hits human-only checkpoints| Queue
 
-    style You fill:#22c55e,color:#fff,stroke:#16a34a
-    style Queue fill:#6366f1,color:#fff,stroke:#4f46e5
+    style Operator fill:#16a34a,color:#ffffff,stroke:#22c55e,stroke-width:2px
+    style Queue fill:#4f46e5,color:#ffffff,stroke:#6366f1,stroke-width:2px
+    style Company fill:#0f172a,color:#f8fafc,stroke:#334155,stroke-width:2px
+    style Research fill:#1e293b,color:#cbd5e1,stroke:#475569,stroke-width:1px
+    style Dev fill:#1e293b,color:#cbd5e1,stroke:#475569,stroke-width:1px
+    style Marketing fill:#1e293b,color:#cbd5e1,stroke:#475569,stroke-width:1px
+    style Legal fill:#1e293b,color:#cbd5e1,stroke:#475569,stroke-width:1px
 ```
 
 **What this means in practice:**
@@ -232,32 +261,38 @@ The adapter's immutable audit log records every lifecycle event with timestamps 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant Engine as OpenOPC DAG Engine
-    participant Adapter as Shadow Mode Adapter
-    participant Store as shadow_tasks.db
-    participant API as FastAPI Server
-    participant Web as React Web Portal
-    participant User as Human Reviewer
+    participant Engine as OpenOPC Engine (store.db)
+    participant Adapter as ShadowModeAdapter
+    participant Store as ShadowStore (shadow_tasks.db)
+    participant API as FastAPI Router (/api/v1)
+    participant Portal as React 19 Human Portal
+    participant Contractor as Human Contractor
 
     Engine->>Adapter: execute(task, role="shadow")
-    Adapter->>Store: Save task record (status = PENDING)
-    Adapter-->>Engine: TaskResult(status = AWAITING_HUMAN) [Execution lock released < 50ms]
+    Adapter->>Store: create_task(status="pending")
+    Adapter-->>Engine: TaskResult(status=AWAITING_HUMAN) [< 50ms execution lock release]
 
-    Note over Engine: Other independent AI tasks continue running in parallel.
+    Note over Engine: Execution lock released. Independent DAG tasks execute in parallel.
 
-    User->>Web: Access portal & authenticate (JWT)
-    Web->>API: Fetch pending tasks
-    API->>Store: Query pending tasks
-    Store-->>API: Task records & AI context
-    API-->>Web: Display task queue
-    
-    User->>Web: Claim task & submit deliverable / approval
-    Web->>API: POST /api/v1/tasks/{id}/submit (notes + attachments)
-    API->>Store: Update task record (status = SUBMITTED)
-    API->>Adapter: Trigger resume pipeline
-    Adapter->>Engine: Direct WAL write to store.db (Phase = APPROVED)
+    Contractor->>Portal: Login (POST /api/v1/auth/login)
+    Portal->>API: GET /api/v1/tasks?status=pending
+    API->>Store: get_tasks(status="pending")
+    Store-->>API: List[ShadowTask]
+    API-->>Portal: Render Task Queue
 
-    Note over Engine: Phase hooks trigger automatically. Downstream tasks unblock and resume execution.
+    Contractor->>Portal: Claim Task (POST /api/v1/tasks/{id}/claim)
+    Portal->>API: claim_task(task_id, contractor_id)
+    API->>Store: update status="claimed", claimed_by=contractor_id
+    Store-->>Portal: 200 OK (Task Claimed)
+
+    Contractor->>Portal: Submit Deliverable (POST /api/v1/tasks/{id}/submit)
+    Portal->>API: Multipart upload (deliverable_text, files[])
+    API->>API: upload.py -> validate & sanitize files
+    API->>Store: update status="submitted", deliverable_text, file_paths
+    API->>Adapter: resume_task(opc_task_id, result_data)
+    Adapter->>Engine: Direct WAL write store.db (Phase.APPROVED)
+
+    Note over Engine: Phase hooks trigger. Downstream DAG nodes resume automatically.
 ```
 
 ---
@@ -270,22 +305,37 @@ The adapter integrates directly into OpenOPC's native `Phase` state machine with
 stateDiagram-v2
     direction LR
 
-    [*] --> RUNNING : Task assigned to shadow role
-    RUNNING --> AWAITING_HUMAN : execute() returns AWAITING_HUMAN (< 50ms)
-    AWAITING_HUMAN --> CLAIMED : Reviewer claims task in portal
-    CLAIMED --> AWAITING_HUMAN : Reviewer unclaims task
-    CLAIMED --> SUBMITTED : Reviewer submits approval/deliverable
-    SUBMITTED --> APPROVED : resume_task() WAL write to store.db
-    SUBMITTED --> READY_FOR_REWORK : Reviewer requests changes
-    READY_FOR_REWORK --> AWAITING_HUMAN : AI agent re-runs with feedback
-    APPROVED --> DONE : OpenOPC unblocks downstream DAG nodes
+    classDef opcPhase fill:#4f46e5,color:#fff,stroke:#6366f1,stroke-width:2px;
+    classDef shadowStatus fill:#0284c7,color:#fff,stroke:#38bdf8,stroke-width:2px;
+    classDef finalState fill:#16a34a,color:#fff,stroke:#22c55e,stroke-width:2px;
+    classDef errorState fill:#dc2626,color:#fff,stroke:#ef4444,stroke-width:2px;
 
-    AWAITING_HUMAN --> FAILED : System error
-    CLAIMED --> CANCELLED : Admin cancellation
+    [*] --> RUNNING : OpenOPC assigns task to shadow role
+    RUNNING --> AWAITING_HUMAN : execute() returns AWAITING_HUMAN (< 50ms)
+    
+    state "Shadow Adapter Statuses" as ShadowState {
+        [*] --> pending : Task parked in shadow_tasks.db
+        pending --> claimed : Contractor claims task
+        claimed --> pending : Contractor unclaims task
+        claimed --> submitted : Contractor submits deliverable
+        submitted --> resumed : resume_task() writes Phase.APPROVED
+        submitted --> rework_requested : Contractor requests AI rework
+        rework_requested --> pending : AI Agent re-runs with feedback
+    }
+
+    AWAITING_HUMAN --> APPROVED : resume_task() SQLite WAL write
+    AWAITING_HUMAN --> READY_FOR_REWORK : Contractor requests rework
+    READY_FOR_REWORK --> AWAITING_HUMAN : AI Agent re-runs
+    APPROVED --> DONE : OpenOPC native phase hooks unblock DAG
 
     DONE --> [*]
     FAILED --> [*]
     CANCELLED --> [*]
+
+    class RUNNING, AWAITING_HUMAN, APPROVED, READY_FOR_REWORK opcPhase;
+    class pending, claimed, submitted, resumed, rework_requested shadowStatus;
+    class DONE finalState;
+    class FAILED, CANCELLED errorState;
 ```
 
 ---
@@ -294,36 +344,56 @@ stateDiagram-v2
 
 ```mermaid
 flowchart TD
-    subgraph Host ["OpenOPC Framework Environment (HKUDS/OpenOPC)"]
+    subgraph HostEnv ["OpenOPC Framework Environment (HKUDS/OpenOPC)"]
         direction LR
-        NativeAgent["Native AI Agent"]
-        CodexAgent["Codex Agent"]
-        ClaudeAgent["Claude Agent"]
-        ShadowRole["Role Configured with\npreferred_external_agent: shadow"]
+        EngineCore["OpenOPC DAG Engine\n(opc.core.engine)"]
+        Registry["Adapter Registry\nADAPTER_CLASSES['shadow']"]
+        ConfigYaml["Organization Config\n(company_config.yaml)"]
+        OPCStore[("OpenOPC Store DB\n(store.db - SQLite WAL Mode)")]
     end
 
-    subgraph Package ["openopc-shadow-adapter Package"]
-        AdapterCore["ShadowModeAdapter\n(adapter.py)\n────────────────────────\nexecute() -> AWAITING_HUMAN\nresume_task() -> APPROVED"]
-        APIServer["FastAPI Server\n(shadow_adapter/api/app.py)\n────────────────────────\n/api/v1/auth\n/api/v1/tasks\n/api/v1/health"]
-        Database[("SQLite Database\n(shadow_tasks.db)\n────────────────────────\nshadow_tasks\naudit_log\ncontractors")]
-        WebPortal["React 19 SPA\n(shadow_adapter/frontend/dist)\n────────────────────────\nJWT Auth & Management\nTask Queue Dashboard\nMulti-file Upload Engine\nAudit Timeline View"]
+    subgraph ShadowPackage ["openopc-shadow-adapter Package"]
+        AdapterImpl["ShadowModeAdapter (adapter.py)\nSubclasses ExternalAgentAdapter\n• execute() -> TaskResult(AWAITING_HUMAN)\n• resume_task() -> Direct WAL Write"]
+        
+        subgraph APILayer ["FastAPI REST Application (shadow_adapter/api)"]
+            AppFactory["App Factory & Server (app.py)\nCLI Entry Point: shadow-serve"]
+            AuthRoutes["Auth Router (routes_auth.py)\n/api/v1/auth/login\n/api/v1/auth/register"]
+            TaskRoutes["Tasks Router (routes_tasks.py)\n/api/v1/tasks\n/api/v1/tasks/{id}/claim\n/api/v1/tasks/{id}/submit"]
+            UploadSecurity["Security & Upload Engine (upload.py)\nFile limit: 5 files, 10MB each, 50MB total\nExtension allowlist & path sanitization"]
+        end
+
+        StoreRepo["ShadowStore Repository (shadow_store.py)\nThread-safe SQLite WAL Access"]
+        ShadowDB[("Shadow Database\n(shadow_tasks.db)\n• shadow_tasks\n• audit_log\n• contractors")]
+        
+        FrontendSPA["React 19 SPA (shadow_adapter/frontend/dist)\n• JWT Authentication\n• Task Queue Dashboard\n• Deliverable Upload Dropzone\n• Audit Timeline Viewer"]
     end
 
-    OPCDatabase[("OpenOPC store.db\n(SQLite WAL Mode)")]
-    HumanUser(["Human Reviewer / Contractor\n(Web Browser)"])
+    ClientBrowser(["Human Contractor / Manager\n(Web Browser)"])
 
-    ShadowRole -->|ADAPTER_CLASSES registration| AdapterCore
-    AdapterCore -->|Persist parked task| Database
-    AdapterCore -->|WAL write Phase.APPROVED| OPCDatabase
-    OPCDatabase -->|Native phase hooks| Host
-    APIServer <--> Database
-    HumanUser --> WebPortal
-    WebPortal <-->|REST API + JWT| APIServer
+    ConfigYaml -->|Configures shadow preferred agent| Registry
+    Registry -->|Instantiates| AdapterImpl
+    EngineCore -->|Invokes execute()| AdapterImpl
+    AdapterImpl -->|1. Park task| StoreRepo
+    StoreRepo --> ShadowDB
+    AdapterImpl -->|2. Write Phase.APPROVED| OPCStore
+    OPCStore -->|Native Phase Hooks| EngineCore
 
-    style AdapterCore fill:#6366f1,color:#fff,stroke:#4f46e5
-    style OPCDatabase fill:#0c111b,color:#94a3b8,stroke:#334155
-    style Database fill:#0c111b,color:#94a3b8,stroke:#334155
-    style HumanUser fill:#22c55e,color:#fff,stroke:#16a34a
+    ClientBrowser <-->|HTTP / HTTPS| FrontendSPA
+    FrontendSPA <-->|REST API + JWT| AppFactory
+    AppFactory --> AuthRoutes
+    AppFactory --> TaskRoutes
+    TaskRoutes --> UploadSecurity
+    TaskRoutes --> StoreRepo
+    StoreRepo <--> ShadowDB
+
+    style HostEnv fill:#0c111b,color:#f8fafc,stroke:#3b82f6,stroke-width:2px
+    style ShadowPackage fill:#0f172a,color:#f8fafc,stroke:#6366f1,stroke-width:2px
+    style AdapterImpl fill:#4f46e5,color:#ffffff,stroke:#6366f1,stroke-width:2px
+    style AppFactory fill:#0284c7,color:#ffffff,stroke:#38bdf8,stroke-width:2px
+    style ShadowDB fill:#1e293b,color:#f8fafc,stroke:#64748b,stroke-width:2px
+    style OPCStore fill:#1e293b,color:#f8fafc,stroke:#64748b,stroke-width:2px
+    style FrontendSPA fill:#059669,color:#ffffff,stroke:#10b981,stroke-width:2px
+    style ClientBrowser fill:#16a34a,color:#ffffff,stroke:#22c55e,stroke-width:2px
 ```
 
 ---
