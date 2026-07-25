@@ -107,13 +107,14 @@ async def test_unknown_kwargs_bomb(shadow_store: ShadowStore, tmp_path: Path) ->
 
     mutated_task = SyntheticMutatedTask(id="opc_mutated_001")
 
-    # Pass unexpected **kwargs into execute()
+    # Pass unexpected **kwargs into execute() via method reference dispatch
     extra_execute_kwargs = {
         "unexpected_future_engine_param": "future_val",
         "callback_url": "http://engine.internal/callback",
         "retry_count": 3,
     }
-    result = await adapter.execute(
+    execute_fn = adapter.execute
+    result = await execute_fn(
         mutated_task,
         "/tmp",
         **extra_execute_kwargs,
@@ -135,14 +136,17 @@ async def test_signature_survival() -> None:
     adapter = ShadowModeAdapter()
     mutated_task = SyntheticMutatedTask(id="opc_sig_001")
 
+    avail_fn = adapter.is_available
     avail_kwargs = {"future_engine_flag": True, "timeout": 5}
-    assert await adapter.is_available(**avail_kwargs) is True
+    assert await avail_fn(**avail_kwargs) is True
 
+    status_fn = adapter.get_status
     status_kwargs = {"engine_version": "v2.5", "debug": True}
-    assert await adapter.get_status(**status_kwargs) == "idle"
+    assert await status_fn(**status_kwargs) == "idle"
 
+    build_fn = adapter.build_invocation
     build_kwargs = {"extra_opt": "opt_val"}
-    cmd, env = adapter.build_invocation(
+    cmd, env = build_fn(
         mutated_task,
         "/tmp",
         **build_kwargs,
