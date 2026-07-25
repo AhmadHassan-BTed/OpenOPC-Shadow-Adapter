@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "openopc-shadow-adapter"
 version = "0.1.0"
-description = "Human-in-the-Loop (HITL) execution adapter and React portal for the OpenOPC framework."
+description = "Zero-modification Human-in-the-Loop adapter for OpenOPC's agentic DAG runtime. Park work items for human review. Resume execution automatically."
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}
@@ -14,24 +14,40 @@ authors = [
 ]
 keywords = [
     "openopc",
+    "openopc-shadow-adapter",
     "human-in-the-loop",
     "hitl",
     "multi-agent",
-    "orchestration",
-    "llm",
-    "task-routing",
-    "shadow-mode",
+    "agentic-workflow",
+    "dag-orchestration",
+    "llm-orchestration",
+    "ai-native",
+    "phase-state-machine",
+    "external-agent-adapter",
+    "autonomous-ai",
+    "ai-oversight",
+    "generative-ai",
+    "agentic-ai",
+    "fastapi",
+    "react-portal",
+    "human-oversight",
+    "ai-company",
+    "workflow-automation",
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
-    "Framework :: FastAPI",
     "Intended Audience :: Developers",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Internet :: WWW/HTTP :: WSGI :: Application",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
-    "Topic :: Software Development :: Libraries :: Application Frameworks",
+    "Framework :: FastAPI",
+    "Environment :: Web Environment",
+    "Operating System :: OS Independent",
 ]
 
 dependencies = [
@@ -64,17 +80,11 @@ all = [
 [project.scripts]
 shadow-serve = "shadow_adapter.api.app:main"
 
-[project.urls]
-Homepage = "https://github.com/openopc/openopc-shadow-adapter"
-Documentation = "https://github.com/openopc/openopc-shadow-adapter#readme"
-Repository = "https://github.com/openopc/openopc-shadow-adapter"
-Issues = "https://github.com/openopc/openopc-shadow-adapter/issues"
-
 [tool.hatch.build.targets.wheel]
 packages = ["shadow_adapter"]
-
-[tool.hatch.build.targets.wheel.shared-data]
-"shadow_adapter/frontend/dist" = "share/shadow_adapter/frontend/dist"
+include = [
+    "shadow_adapter/frontend/dist/**/*",
+]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
@@ -89,4 +99,3 @@ target-version = "py310"
 
 [tool.ruff.lint]
 ignore = ["E501", "E402", "B008", "BLE001", "B017"]
-
