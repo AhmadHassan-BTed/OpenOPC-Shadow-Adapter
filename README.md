@@ -11,17 +11,17 @@ OpenOPC executes multi-agent Directed Acyclic Graphs (DAGs) at machine speed (mi
 
 ---
 
-## 🚀 Key Features
+## Architectural Principles
 
-* 👤 **True Human-in-the-Loop (HITL):** Bridges sub-second LLM multi-agent DAG execution with asynchronous human workflows operating on human timescales (hours/days).
-* 🛡️ **The Anti-Fragility Mandate (Zero Core Modifications):** Interacts strictly through OpenOPC's public `ExternalAgentAdapter` interface and phase state machine. Zero monkey-patching or modifications to core OpenOPC files.
-* ⚛️ **Native-Coherent React UI:** Includes an independent React + Tailwind CSS Human Portal styled with OpenOPC's visual language (`#0c111b` theme, `--accent` tokens). Contractors view task context, upload deliverables, and submit work cleanly.
-* 🔒 **State Isolation & Autonomy:** Maintains a standalone SQLite database (`shadow_tasks.db`) operating in WAL mode. Operates with independent JWT authentication, bcrypt password hashing, and input sanitization.
-* ⚡ **Zero DAG Timeout Crashes:** Non-blocking design releases native threads immediately, preventing thread blockages, poll loops, or system execution timeouts.
+* **True Human-in-the-Loop (HITL):** Bridges sub-second LLM multi-agent DAG execution with asynchronous human workflows operating on human timescales (hours/days).
+* **Zero Core Modifications:** Interacts strictly through OpenOPC's public `ExternalAgentAdapter` interface and phase state machine. Zero monkey-patching or overrides of core OpenOPC files.
+* **Native-Coherent React UI:** Includes an independent React + Tailwind CSS Human Portal styled with OpenOPC's visual language (`#0c111b` theme, `--accent` tokens). Contractors view task context, upload deliverables, and submit work cleanly.
+* **State Isolation & Autonomy:** Maintains a standalone SQLite database (`shadow_tasks.db`) operating in WAL mode. Operates with independent JWT authentication, bcrypt password hashing, and input sanitization.
+* **Zero DAG Timeout Crashes:** Non-blocking design releases native threads immediately, preventing thread blockages, poll loops, or system execution timeouts.
 
 ---
 
-## 🛠️ How It Works (Technical Architecture)
+## Technical Architecture
 
 ```
 OpenOPC Engine                     Shadow Adapter                    Human Contractor Portal
@@ -48,7 +48,7 @@ OpenOPC Engine                     Shadow Adapter                    Human Contr
      └─► [DAG Resumes Execution]          │                                    │
 ```
 
-### The Intercept -> Park -> Resume Lifecycle
+### Intercept -> Park -> Resume Lifecycle
 
 1. **Intercept & Park:** When an OpenOPC DAG task reaches a role assigned to the `shadow` adapter, `ShadowModeAdapter.execute()` is invoked. The adapter maps the OpenOPC `Task` into a local `ShadowTask` record inside an isolated SQLite database (`shadow_tasks.db`).
 2. **Immediate Lock Release:** `execute()` immediately returns a `TaskResult(status=TaskStatus.AWAITING_HUMAN)`. OpenOPC transitions the work item to `Phase.AWAITING_HUMAN` (an in-review state in the phase machine) and releases its thread and execution lock. No process blocks, and no idle timers tick.
@@ -57,7 +57,7 @@ OpenOPC Engine                     Shadow Adapter                    Human Contr
 
 ---
 
-## ⚡ Quickstart
+## Quickstart
 
 ### 1. Installation
 
@@ -109,6 +109,6 @@ Navigate to `http://localhost:8800` in your browser to access the Human Portal.
 
 ---
 
-## 📖 License
+## License
 
 This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
