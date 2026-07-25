@@ -8,30 +8,32 @@ This guide provides step-by-step setup, configuration, and architectural walkthr
 
 `openopc-shadow-adapter` is a decoupled, zero-core-modification extension for OpenOPC.
 
-```
-┌────────────────────────────────────────────────────────┐
-│                   OpenOPC Core Engine                  │
-│  - Company Mode DAG Orchestration                      │
-│  - store.db (delegation_work_items.phase)              │
-└───────────────────────────┬────────────────────────────┘
-                            │
-              preferred_external_agent: shadow
-                            │
-┌───────────────────────────▼────────────────────────────┐
-│              OpenOPC Shadow Adapter Symbiote           │
-│  - ShadowModeAdapter (<50ms non-blocking intercept)    │
-│  - TaskBriefBuilder (Markdown Briefs)                  │
-│  - shadow_tasks.db (Isolated WAL persistence)          │
-│  - CorporateArtifacts (Knowledge Graph Registry)       │
-│  - FastAPI Server & React Portal (Port 8800)           │
-└───────────────────────────┬────────────────────────────┘
-                            │
-             ┌──────────────┴──────────────┐
-             ▼                             ▼
-┌──────────────────────────┐  ┌──────────────────────────┐
-│  Human Contractor Portal │  │ Remote BYOC Worker Nodes │
-│  (Port 8800 React SPA)   │  │ (shadow-worker CLI)      │
-└──────────────────────────┘  └──────────────────────────┘
+```mermaid
+flowchart TD
+    subgraph Host ["OpenOPC Core Engine"]
+        OPC["Company Mode DAG Orchestration\nstore.db (delegation_work_items.phase)"]
+    end
+
+    subgraph Adapter ["OpenOPC Shadow Adapter Symbiote"]
+        SA["ShadowModeAdapter (<50ms non-blocking intercept)"]
+        TB["TaskBriefBuilder (Markdown Briefs)"]
+        DB[("shadow_tasks.db (Isolated WAL persistence)")]
+        KG["CorporateArtifacts (Knowledge Graph Registry)"]
+        API["FastAPI Server & React Portal (Port 8800)"]
+    end
+
+    subgraph Workforce ["Hybrid Carbon & Silicon Workforce"]
+        UI["Human Contractor Portal\n(Port 8800 React SPA)"]
+        BYOC["Remote BYOC Worker Nodes\n(shadow-worker CLI)"]
+    end
+
+    OPC -->|preferred_external_agent: shadow| SA
+    SA --> TB
+    SA --> DB
+    SA --> KG
+    DB <--> API
+    API <--> UI
+    API <--> BYOC
 ```
 
 ---
