@@ -30,7 +30,11 @@ class UploadValidationError(ValueError):
 class SecureUploadHandler:
     """Manages file storage, filename sanitization, and security checks."""
 
-    def __init__(self, config: UploadLimits | Any, *, upload_dir: str | Path | None = None) -> None:
+    def __init__(
+        self,
+        config: UploadLimits | Any,
+        upload_dir: str | Path | None = None,
+    ) -> None:
         # Accept UploadLimits directly, or extract from ShadowConfig for backward compat
         if isinstance(config, UploadLimits):
             self._limits = config
