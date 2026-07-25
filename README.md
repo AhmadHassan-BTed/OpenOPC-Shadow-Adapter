@@ -92,29 +92,34 @@ For complete technical sequence diagrams, state machine maps, and database schem
 
 ---
 
-## Quick Start & Integration Guide
+## Symbiotic Integration & Quick Start
+
+`openopc-shadow-adapter` is built to run as a **true symbiont** with OpenOPC. You can run the portal server embedded in your main Python process or as a standalone CLI sidecar.
 
 ### Step 1: Install Package
 ```bash
 pip install openopc-shadow-adapter
 ```
 
-### Step 2: Register Adapter in Your Application Script
-In your main OpenOPC startup script (e.g., `main.py` or `run_company.py`), register the adapter **before** running your DAG engine:
+### Step 2: Register & Launch Embedded (Zero Extra Commands)
+In your main OpenOPC application entry point (e.g., `main.py`), register the adapter and launch the Human Portal server concurrently in a background thread:
 
 ```python
 # main.py (Your OpenOPC application entry point)
 from opc.layer3_agent.adapters.registry import ADAPTER_CLASSES
-from shadow_adapter.adapter import ShadowModeAdapter
+from shadow_adapter import ShadowModeAdapter, start_server_in_thread
 
-# Register "shadow" mode into OpenOPC's adapter registry
+# 1. Register "shadow" mode into OpenOPC's adapter registry
 ADAPTER_CLASSES["shadow"] = ShadowModeAdapter
 
-# Now launch your OpenOPC DAG pipeline as normal
+# 2. Launch Human Web Portal concurrently on port 8800 (single process)
+start_server_in_thread(port=8800)
+
+# 3. Launch your OpenOPC DAG pipeline as normal!
 ```
 
-### Step 3: Configure Roles in Organization Config
-In your OpenOPC organization config (`.opc/config/company_orgs/company_config.yaml`), set `preferred_external_agent: shadow` for any role requiring human approval:
+### Step 3: Configure Target Roles
+In your OpenOPC organization config (`.opc/config/company_orgs/company_config.yaml`), set `preferred_external_agent: shadow` for human-backed roles:
 
 ```yaml
 # .opc/config/company_orgs/company_config.yaml
@@ -122,16 +127,16 @@ roles:
   legal_counsel:
     title: "Human Legal Counsel"
     execution_strategy: external
-    preferred_external_agent: shadow  # <-- Routes tasks to Shadow Adapter
+    preferred_external_agent: shadow  # <-- Intercepted by Shadow Adapter
 
   senior_architect:
     title: "Human Senior Architect"
     execution_strategy: external
-    preferred_external_agent: shadow  # <-- Routes tasks to Shadow Adapter
+    preferred_external_agent: shadow  # <-- Intercepted by Shadow Adapter
 ```
 
-### Step 4: Launch Web Portal Server
-Run the portal server in your terminal:
+### Alternative: Launch via CLI Sidecar
+If you prefer running the Web Portal in a separate terminal or Docker container:
 
 ```bash
 shadow-serve --port 8800

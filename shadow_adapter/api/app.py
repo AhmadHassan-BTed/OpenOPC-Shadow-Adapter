@@ -135,6 +135,31 @@ def create_app(config: ShadowConfig | None = None) -> FastAPI:
     return app
 
 
+def start_server_in_thread(
+    port: int = 8800,
+    host: str = "0.0.0.0",
+    config: ShadowConfig | None = None,
+) -> threading.Thread:
+    """Launch the Shadow Adapter FastAPI server programmatically in a background thread.
+
+    Enables running the Human Portal REST API programmatically inside your
+    main OpenOPC application process without needing a separate terminal command.
+    """
+    import threading
+    import uvicorn
+
+    cfg = config or ShadowConfig(api_port=port, api_host=host)
+    app = create_app(cfg)
+
+    uv_config = uvicorn.Config(app, host=host, port=port, log_level="warning")
+    server = uvicorn.Server(uv_config)
+
+    thread = threading.Thread(target=server.run, daemon=True)
+    thread.start()
+    logger.info(f"Programmatic Shadow Adapter server launched in background thread on http://{host}:{port}")
+    return thread
+
+
 def main() -> None:
     """CLI entry point for ``shadow-serve`` command."""
     parser = argparse.ArgumentParser(description="OpenOPC Shadow Adapter Server")
@@ -156,3 +181,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
