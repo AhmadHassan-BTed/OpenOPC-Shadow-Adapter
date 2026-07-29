@@ -41,6 +41,8 @@ class OpcResumeRepository:
         """Push human deliverable back into OpenOPC store to unblock the DAG.
 
         Wrapped in an Exception Black Hole for safe execution.
+        Uses OPCStore when available to trigger transition validation and phase hooks,
+        with an aiosqlite direct WAL fallback for standalone mode.
         """
         try:
             db_path = Path(opc_store_path)
@@ -59,44 +61,68 @@ class OpcResumeRepository:
                 content=task_result_content,
                 artifacts=task_result_artifacts or {},
             )
-
-            now_iso = datetime.now(timezone.utc).isoformat()
-
+            result_dict = json.loads(result_json)
             target_phase = str(shadow_task.opc_metadata.get("target_phase") or "approved")
+            task_found = False
+            work_item_updated = False
 
-            async with aiosqlite.connect(str(db_path)) as db:
-                await db.execute("PRAGMA journal_mode=WAL")
+            # Try using OpenOPC Store API first (fires phase hooks & validates state transitions)
+            try:
+                from opc.core.models import Phase, TaskStatus
+                from opc.database.store import OPCStore
 
-                # Step 3: Update task status in OpenOPC database
-                cursor = await db.execute(
-                    """UPDATE tasks
-                       SET status = 'done',
-                           result = ?,
-                           execution_lock = 0,
-                           execution_locked_at = NULL
-                       WHERE id = ?""",
-                    (result_json, shadow_task.opc_task_id),
-                )
+                store = OPCStore(str(db_path))
+                await store.initialize()
 
-                task_found = cursor.rowcount > 0
-                if not task_found:
-                    logger.warning(
-                        f"[OpcResumeRepository] No OpenOPC task row matched id '{shadow_task.opc_task_id}' in store.db (Orphaned task)"
-                    )
+                # Update Task
+                task = await store.get_task(shadow_task.opc_task_id)
+                if task:
+                    task.status = TaskStatus.DONE
+                    task.execution_lock = False
+                    task.execution_locked_at = None
+                    task.result = result_dict
+                    await store.save_task(task)
+                    task_found = True
 
-                # Step 4: If linked to a work item, advance phase to OpenOPC expected phase
-                work_item_updated = False
+                # Update Work Item Phase
                 if shadow_task.opc_work_item_id:
-                    wi_cursor = await db.execute(
-                        """UPDATE delegation_work_items
-                           SET phase = ?,
-                               updated_at = ?
-                           WHERE work_item_id = ?""",
-                        (target_phase, now_iso, shadow_task.opc_work_item_id),
+                    updated_wi = await store.update_delegation_work_item(
+                        work_item_id=shadow_task.opc_work_item_id,
+                        phase=target_phase,
+                        deliverable_summary=task_result_content or shadow_task.deliverable_text,
                     )
-                    work_item_updated = wi_cursor.rowcount > 0
+                    work_item_updated = updated_wi is not None
 
-                await db.commit()
+                await store.close()
+            except (ImportError, Exception) as store_api_exc:
+                logger.debug(f"[OpcResumeRepository] Store API resume fallback to direct WAL: {store_api_exc}")
+                # Direct WAL fallback
+                now_iso = datetime.now(timezone.utc).isoformat()
+                async with aiosqlite.connect(str(db_path)) as db:
+                    await db.execute("PRAGMA journal_mode=WAL")
+
+                    cursor = await db.execute(
+                        """UPDATE tasks
+                           SET status = 'done',
+                               result = ?,
+                               execution_lock = 0,
+                               execution_locked_at = NULL
+                           WHERE id = ?""",
+                        (result_json, shadow_task.opc_task_id),
+                    )
+                    task_found = cursor.rowcount > 0
+
+                    if shadow_task.opc_work_item_id:
+                        wi_cursor = await db.execute(
+                            """UPDATE delegation_work_items
+                               SET phase = ?,
+                                   updated_at = ?
+                               WHERE work_item_id = ?""",
+                            (target_phase, now_iso, shadow_task.opc_work_item_id),
+                        )
+                        work_item_updated = wi_cursor.rowcount > 0
+
+                    await db.commit()
 
             logger.info(
                 f"[OpcResumeRepository] Resumed OpenOPC task {shadow_task.opc_task_id} "

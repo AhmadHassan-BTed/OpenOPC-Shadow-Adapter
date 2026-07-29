@@ -3,33 +3,63 @@
 @import "tailwindcss/utilities";
 
 :root {
-  --opc-bg: #0c111b;
-  --opc-elevated: #141b2b;
-  --opc-secondary: #1a2332;
-  --opc-surface: rgba(20, 27, 43, 0.75);
-  --opc-text: #e2e8f0;
-  --opc-text-secondary: #8494a7;
-  --opc-text-dim: #64748b;
-  --opc-accent: #14b8a6;
-  --opc-accent-hover: #0d9488;
-  --opc-accent-soft: rgba(20, 184, 166, 0.15);
-  --opc-border: rgba(148, 163, 184, 0.12);
-  --opc-border-hover: rgba(148, 163, 184, 0.28);
+  /* OpenOPC Office UI Design Tokens */
+  --bg: #0c111b;
+  --bg-elevated: #141b2b;
+  --bg-card: #141b2b;
+  --bg-secondary: #1a2332;
+  --text: #e2e8f0;
+  --text-secondary: #8494a7;
+  --text-dim: #64748b;
+  --border: rgba(148, 163, 184, 0.12);
+  --border-hover: rgba(148, 163, 184, 0.22);
+  --surface: rgba(20, 27, 43, 0.7);
+  --surface-hover: rgba(30, 41, 63, 0.7);
+  --accent: #6366f1;
+  --accent-hover: #4f46e5;
+  --accent-soft: rgba(99, 102, 241, 0.15);
+  --accent-glow: rgba(99, 102, 241, 0.3);
+  --green: #34d399;
+  --yellow: #fbbf24;
+  --red: #f87171;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --radius-xs: 6px;
+
+  /* Symbiote Aliases */
+  --opc-bg: var(--bg);
+  --opc-elevated: var(--bg-elevated);
+  --opc-secondary: var(--bg-secondary);
+  --opc-surface: var(--surface);
+  --opc-text: var(--text);
+  --opc-text-secondary: var(--text-secondary);
+  --opc-text-dim: var(--text-dim);
+  --opc-accent: var(--accent);
+  --opc-accent-hover: var(--accent-hover);
+  --opc-accent-soft: var(--accent-soft);
+  --opc-border: var(--border);
+  --opc-border-hover: var(--border-hover);
 }
 
 .light-theme {
-  --opc-bg: #f8fafc;
-  --opc-elevated: #ffffff;
-  --opc-secondary: #f1f5f9;
-  --opc-surface: rgba(255, 255, 255, 0.9);
-  --opc-text: #0f172a;
-  --opc-text-secondary: #475569;
-  --opc-text-dim: #94a3b8;
-  --opc-accent: #0d9488;
-  --opc-accent-hover: #0f766e;
-  --opc-accent-soft: rgba(13, 148, 136, 0.12);
-  --opc-border: rgba(203, 213, 225, 0.6);
-  --opc-border-hover: rgba(148, 163, 184, 0.8);
+  --bg: #f8fafc;
+  --bg-elevated: #ffffff;
+  --bg-card: #ffffff;
+  --bg-secondary: #f1f5f9;
+  --text: #0f172a;
+  --text-secondary: #475569;
+  --text-dim: #94a3b8;
+  --border: rgba(203, 213, 225, 0.6);
+  --border-hover: rgba(148, 163, 184, 0.8);
+  --surface: rgba(255, 255, 255, 0.9);
+  --surface-hover: rgba(241, 245, 249, 0.9);
+  --accent: #4f46e5;
+  --accent-hover: #4338ca;
+  --accent-soft: rgba(79, 70, 229, 0.12);
+  --accent-glow: rgba(79, 70, 229, 0.25);
+  --green: #10b981;
+  --yellow: #f59e0b;
+  --red: #ef4444;
 }
 
 body {

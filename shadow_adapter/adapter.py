@@ -23,13 +23,19 @@ from shadow_adapter.shadow_store import ShadowStore
 
 # Import OpenOPC core types or use fallback dataclass mocks for standalone testing
 try:
-    from opc.core.models import Task, TaskResult, TaskStatus
+    from opc.core.models import AgentStatus, Task, TaskResult, TaskStatus
     from opc.layer3_agent.adapters.base import ExternalAgentAdapter
 
     HAS_OPENOPC = True
 except ImportError:
     HAS_OPENOPC = False
     from dataclasses import dataclass, field
+
+    class AgentStatus:  # type: ignore[no-redef]
+        IDLE = "idle"
+        RUNNING = "running"
+        BLOCKED = "blocked"
+        ERROR = "error"
 
     class TaskStatus:  # type: ignore[no-redef]
         PENDING = "pending"
@@ -87,6 +93,7 @@ class ShadowModeAdapter(ExternalAgentAdapter):
         super().__init__(config)
         self.shadow_config = shadow_config or ShadowConfig()
         self._shadow_store = shadow_store
+        self._last_shadow_result: TaskResult | None = None
 
     async def _get_store(self) -> ShadowStore:
         if self._shadow_store is None:
@@ -99,8 +106,40 @@ class ShadowModeAdapter(ExternalAgentAdapter):
         return True
 
     async def get_status(self, *args: Any, **kwargs: Any) -> Any:
-        """Return idle status since human work happens asynchronously out-of-band."""
-        return getattr(TaskStatus, "IDLE", "idle")
+        """Return idle AgentStatus since human work happens asynchronously out-of-band."""
+        return getattr(AgentStatus, "IDLE", "idle")
+
+    def agent_isolation_home_slug(self) -> str | None:
+        """Return isolation slug required by OpenOPC broker in Company Mode."""
+        return "shadow"
+
+    def agent_home_env_vars(self, home: str) -> dict[str, str]:
+        """Return isolation env vars required by OpenOPC broker."""
+        return {"SHADOW_ADAPTER_HOME": str(home)}
+
+    def post_install_agent_home(self, home: str) -> None:
+        """Post-install callback for OpenOPC broker isolation home."""
+        pass
+
+    def supports_interactive(self) -> bool:
+        return False
+
+    def supports_session_resume(self) -> bool:
+        return False
+
+    def stdin_policy_for_process(
+        self,
+        cmd: list[str],
+        metadata: dict[str, Any] | None = None,
+    ) -> str:
+        return "devnull"
+
+    def supports_approval_prompt_handling(
+        self,
+        cmd: list[str],
+        metadata: dict[str, Any] | None = None,
+    ) -> bool:
+        return False
 
     def build_invocation(
         self,
@@ -109,12 +148,55 @@ class ShadowModeAdapter(ExternalAgentAdapter):
         *args: Any,
         **kwargs: Any,
     ) -> tuple[list[str], dict[str, Any]]:
-        """Return empty command list because shadow tasks do not launch subprocesses."""
-        return [], {
+        """Return non-empty command for external broker audit and invocation tracking."""
+        return ["shadow", "--mode", "park"], {
             "agent": self.agent_type,
+            "command": "shadow --mode park",
             "workspace": workspace_path or "",
             "mode": "shadow_human_in_loop",
         }
+
+    async def start_process(
+        self,
+        cmd: list[str],
+        workspace_path: str,
+        extra_env: dict[str, str] | None = None,
+        task: Task | None = None,
+        launch_metadata: dict[str, Any] | None = None,
+    ) -> Any:
+        """Intercept task parking when invoked via OpenOPC ExternalAgentBroker.start_process().
+
+        Parks the task in local shadow DB and returns a completed mock subprocess.
+        """
+        import asyncio
+        import sys
+
+        if task is not None:
+            self._last_shadow_result = await self.execute(task, workspace_path)
+
+        content = self._last_shadow_result.content if self._last_shadow_result else "shadow_mode_parked"
+        # Launch a quick no-op python subprocess that prints the content and exits cleanly
+        proc = await asyncio.create_subprocess_exec(
+            sys.executable,
+            "-c",
+            f"import sys; print({repr(content)}); sys.exit(0)",
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+            cwd=workspace_path if workspace_path and Path(workspace_path).exists() else None,
+        )
+        return proc
+
+    def normalize_result_output(self, output: str) -> str:
+        """Return the parked result content when called by ExternalAgentBroker."""
+        if self._last_shadow_result is not None:
+            return self._last_shadow_result.content
+        return output
+
+    def extract_structured_result_fields(self, output: str) -> dict[str, Any]:
+        """Return parked result artifacts when called by ExternalAgentBroker."""
+        if self._last_shadow_result is not None and self._last_shadow_result.artifacts:
+            return self._last_shadow_result.artifacts
+        return {}
 
     async def execute(
         self,

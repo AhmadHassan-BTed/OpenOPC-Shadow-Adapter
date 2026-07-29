@@ -50,13 +50,37 @@ async def test_adapter_availability_and_status(shadow_config: ShadowConfig) -> N
 
 
 async def test_build_invocation(shadow_config: ShadowConfig) -> None:
-    """Test build_invocation returns an empty command list."""
+    """Test build_invocation returns a non-empty command for broker tracking."""
     adapter = ShadowModeAdapter(shadow_config=shadow_config)
     task = Task(id="t_inv_1", title="Invocation Test")
     cmd, env = adapter.build_invocation(task, workspace_path="/tmp/workspace")
-    assert cmd == []
+    assert cmd == ["shadow", "--mode", "park"]
     assert env["agent"] == "shadow"
     assert env["workspace"] == "/tmp/workspace"
+
+
+async def test_agent_isolation_home_slug(shadow_config: ShadowConfig) -> None:
+    """Test agent_isolation_home_slug returns valid slug for OpenOPC broker."""
+    adapter = ShadowModeAdapter(shadow_config=shadow_config)
+    assert adapter.agent_isolation_home_slug() == "shadow"
+    assert adapter.agent_home_env_vars("/tmp/home") == {"SHADOW_ADAPTER_HOME": "/tmp/home"}
+
+
+async def test_start_process_interception(shadow_config: ShadowConfig, shadow_store: ShadowStore, tmp_path: Path) -> None:
+    """Test start_process intercepts task, parks it, and returns a completed process."""
+    adapter = ShadowModeAdapter(shadow_config=shadow_config, shadow_store=shadow_store)
+    task = Task(id="t_proc_1", title="Start Process Intercept Test")
+    proc = await adapter.start_process(
+        cmd=["shadow", "--mode", "park"],
+        workspace_path=str(tmp_path),
+        task=task,
+    )
+    assert proc is not None
+    await proc.wait()
+    assert proc.returncode == 0
+    parked = await shadow_store.get_task_by_opc_id("t_proc_1")
+    assert parked is not None
+    assert parked.title == "Start Process Intercept Test"
 
 
 async def test_adapter_execute_parks_task(

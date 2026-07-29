@@ -142,7 +142,7 @@ async def test_signature_survival() -> None:
         "/tmp",
         extra_opt="opt_val",
     )
-    assert cmd == []
+    assert cmd == ["shadow", "--mode", "park"]
     assert env["mode"] == "shadow_human_in_loop"
 
 
