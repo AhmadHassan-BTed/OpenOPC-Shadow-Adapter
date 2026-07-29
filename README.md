@@ -134,6 +134,7 @@ flowchart LR
 For complete documentation:
 - 📖 **[Step-by-Step Execution Flow Walkthrough](docs/execution_flow.md)**
 - 🛠️ **[Detailed Implementation & Setup Guide](docs/implementation_guide.md)**
+- 📜 **[Changelog & Compatibility Matrix](CHANGELOG.md)**
 
 ---
 
