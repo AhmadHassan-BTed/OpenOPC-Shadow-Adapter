@@ -61,7 +61,7 @@ sequenceDiagram
       execution_strategy: external
       preferred_external_agent: shadow  # <-- Intercepted!
   ```
-  OpenOPC invokes `ShadowModeAdapter.execute()`.
+  OpenOPC invokes `ShadowModeAdapter.start_process()` (via `ExternalAgentBroker`).
 
 ---
 
@@ -71,7 +71,7 @@ sequenceDiagram
   1. The adapter extracts the task objective, project goal, and ancestor subagent deliverables.
   2. `TaskBriefBuilder` compiles a structured markdown brief (`brief_md`).
   3. The adapter parks a record into `shadow_tasks.db` with status `pending`.
-  4. The adapter returns `AWAITING_HUMAN` to the OpenOPC engine.
+  4. The adapter returns `AWAITING_HUMAN` status and a completed mock process to the OpenOPC broker.
   5. **Crucial Benefit**: Python execution threads release immediately. Non-dependent DAG branches continue running in parallel without stalling or timing out.
 
 ---
@@ -112,8 +112,8 @@ sequenceDiagram
 ### Step 7: Canonical State Resume & DAG Unblock
 * **Who does this?** `OpcResumeRepository` & OpenOPC Engine.
 * **What happens?**:
-  1. `OpcResumeRepository` opens OpenOPC's `store.db` in SQLite WAL mode.
-  2. Updates `delegation_work_items.phase` to `approved` (or designated target phase).
+  1. `OpcResumeRepository` initializes OpenOPC's `OPCStore` API against `store.db`.
+  2. Calls `store.update_delegation_work_item(phase=target_phase)` which validates transitions (`validate_transition()`) and triggers native `on_phase_transition()` hooks (`task.status` sync, dispatcher wake signals).
   3. Updates shadow task status to `resumed`.
   4. OpenOPC's engine detects the phase transition, wakes downstream DAG nodes, and passes `CorporateArtifacts` context to successor roles.
   5. The Contractor Portal displays the **Ghost Submission Lock Screen**: *"Deliverable Submitted. The OpenOPC DAG has automatically resumed."*

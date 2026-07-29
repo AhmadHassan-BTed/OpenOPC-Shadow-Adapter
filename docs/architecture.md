@@ -9,8 +9,9 @@ This document defines the deep architectural specifications, data flows, state m
 ### ExternalAgentAdapter Inheritance
 - **Base Class:** `opc.layer3_agent.adapters.base.ExternalAgentAdapter`
 - **Registry Injection:** `ADAPTER_CLASSES["shadow"] = ShadowModeAdapter`
-- **Non-Blocking Intercept:** `execute()` MUST save task state to `shadow_tasks.db` and return `TaskResult(status=AWAITING_HUMAN)` in **< 50ms**. It MUST NOT block the calling engine execution thread.
-- **WAL-Mode Resume Pipeline:** `resume_task()` delegates to `OpcResumeRepository` which updates OpenOPC's `store.db` setting task phase to `Phase.APPROVED` using SQLite Write-Ahead Logging (WAL mode) for safe concurrent database access.
+- **Broker Intercept (`start_process` & `execute`):** `start_process()` and `execute()` save task state to `shadow_tasks.db` and return `TaskResult(status=AWAITING_HUMAN)` in **< 50ms**. Execution threads release immediately so parallel DAG tasks execute without timing out.
+- **Company Mode Isolation Home:** Implements `agent_isolation_home_slug() → "shadow"` to satisfy OpenOPC ExternalAgentBroker isolation requirements in Company Mode.
+- **Phase Hook Resume Pipeline:** `resume_task()` delegates to `OpcResumeRepository` which uses OpenOPC's `OPCStore` API (`update_delegation_work_item()`) to validate phase transitions (`validate_transition()`), set phase to `Phase.APPROVED`, and fire native phase transition hooks (`on_phase_transition()`).
 
 ### N-Tier Production Line Architecture
 The codebase enforces strict tier boundaries across 3 decoupled layers:
@@ -26,7 +27,7 @@ The codebase enforces strict tier boundaries across 3 decoupled layers:
    - Pure Domain Exceptions (`TaskNotFoundError`, `TaskPermissionError`, `TaskNotClaimedError`, `InvalidCredentialsError`).
 
 3. **Repository Tier (`shadow_adapter/repositories/` & `shadow_store.py`)**
-   - **`OpcResumeRepository`:** Direct WAL writer to OpenOPC's `store.db` with 100% test coverage and Exception Black Hole protection.
+   - **`OpcResumeRepository`:** OpenOPC `store.db` resume writer using `OPCStore` API with a direct WAL fallback, 100% test coverage, and Exception Black Hole protection.
    - **`ShadowStore`:** Thread-safe SQLite WAL repository for `shadow_tasks.db`.
 
 ---
